@@ -1,8 +1,43 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ShoppingBasket } from "lucide-react";
+
+// Rasm yuklanmasa — brendlangan placeholder ko'rsatadigan xavfsiz rasm komponenti
+export function SafeImg({
+  src,
+  alt,
+  className,
+  iconSize = 28,
+}: {
+  src: string | null | undefined;
+  alt: string;
+  className?: string;
+  iconSize?: number;
+}) {
+  const [failed, setFailed] = useState(false);
+  if (!src || failed) {
+    return (
+      <span
+        className={`flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 text-green-300 ${className ?? ""}`}
+      >
+        <ShoppingBasket size={iconSize} strokeWidth={1.5} />
+      </span>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={alt}
+      loading="lazy"
+      className={className}
+      onError={() => setFailed(true)}
+    />
+  );
+}
 
 export function TopBar({
   title,

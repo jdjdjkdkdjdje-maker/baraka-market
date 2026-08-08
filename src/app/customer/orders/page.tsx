@@ -2,14 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Package, RefreshCw, ImageOff, ChevronRight } from "lucide-react";
+import { Package, RefreshCw, ChevronRight } from "lucide-react";
 import { api, type OrderSummary } from "@/lib/customer-api";
 import {
   fmtSum, fmtDateTime, ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, PAYMENT_STATUS_LABELS,
 } from "@/lib/customer-format";
 import { useCustomerStore } from "@/components/customer/Store";
 import BottomNav from "@/components/customer/BottomNav";
-import { EmptyState, ErrorState, ListSkeleton } from "@/components/customer/Shared";
+import { EmptyState, ErrorState, ListSkeleton, SafeImg } from "@/components/customer/Shared";
 
 export default function OrdersPage() {
   const { user, loading: userLoading } = useCustomerStore();
@@ -111,14 +111,7 @@ export default function OrdersPage() {
               <div className="mt-3 flex items-center gap-2">
                 {o.items.slice(0, 4).map((it) => (
                   <span key={it.id} className="h-12 w-12 overflow-hidden rounded-xl bg-gray-50 ring-1 ring-gray-100">
-                    {it.productImage ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={it.productImage} alt={it.productName} className="h-full w-full object-cover" />
-                    ) : (
-                      <span className="flex h-full w-full items-center justify-center text-gray-300">
-                        <ImageOff size={18} />
-                      </span>
-                    )}
+                    <SafeImg src={it.productImage} alt={it.productName} className="h-full w-full object-cover" iconSize={18} />
                   </span>
                 ))}
                 {o.items.length > 4 && (

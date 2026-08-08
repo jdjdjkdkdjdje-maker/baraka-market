@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ShoppingCart, Trash2, Minus, Plus, ImageOff, TicketPercent, X } from "lucide-react";
+import { ShoppingCart, Trash2, Minus, Plus, TicketPercent, X } from "lucide-react";
 import { toast } from "sonner";
 import { api, type CartData } from "@/lib/customer-api";
 import { fmtSum } from "@/lib/customer-format";
 import { useCustomerStore } from "@/components/customer/Store";
 import BottomNav from "@/components/customer/BottomNav";
-import { EmptyState, ErrorState, ListSkeleton } from "@/components/customer/Shared";
+import { EmptyState, ErrorState, ListSkeleton, SafeImg } from "@/components/customer/Shared";
 
 export default function CartPage() {
   const { user, loading: userLoading, setCartCount } = useCustomerStore();
@@ -170,14 +170,7 @@ export default function CartPage() {
                   href={`/customer/products/${item.productId}`}
                   className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-50"
                 >
-                  {item.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
-                  ) : (
-                    <span className="flex h-full w-full items-center justify-center text-gray-300">
-                      <ImageOff size={24} />
-                    </span>
-                  )}
+                  <SafeImg src={item.image} alt={item.name} className="h-full w-full object-cover" iconSize={24} />
                 </Link>
                 <div className="flex min-w-0 flex-1 flex-col">
                   <div className="flex items-start justify-between gap-2">

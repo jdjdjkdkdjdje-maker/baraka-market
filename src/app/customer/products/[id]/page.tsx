@@ -3,14 +3,14 @@
 import { useCallback, useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Heart, Star, Minus, Plus, ShoppingCart, Zap, ImageOff, ChevronLeft, BadgeCheck,
+  Heart, Star, Minus, Plus, ShoppingCart, Zap, ChevronLeft, BadgeCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { api, type ProductCard as ProductCardType } from "@/lib/customer-api";
 import { fmtSum, fmtDate } from "@/lib/customer-format";
 import { useCustomerStore } from "@/components/customer/Store";
 import ProductCard from "@/components/customer/ProductCard";
-import { ErrorState, Shimmer } from "@/components/customer/Shared";
+import { ErrorState, Shimmer, SafeImg } from "@/components/customer/Shared";
 
 type ProductDetail = {
   id: number;
@@ -166,6 +166,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
         </button>
         <button
           type="button"
+          aria-label="Sevimlilarga qo'shish"
           onClick={() => toggleFavorite(p.id)}
           className="absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-2xl bg-white/90 shadow-md"
         >
@@ -173,14 +174,12 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
         </button>
 
         <div className="aspect-square w-full overflow-hidden bg-gray-50">
-          {p.images.length > 0 ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={p.images[imageIndex]} alt={p.name} className="h-full w-full object-cover" />
-          ) : (
-            <span className="flex h-full w-full items-center justify-center text-gray-300">
-              <ImageOff size={48} />
-            </span>
-          )}
+          <SafeImg
+            src={p.images[imageIndex] ?? null}
+            alt={p.name}
+            className="h-full w-full object-cover"
+            iconSize={56}
+          />
         </div>
 
         {p.images.length > 1 && (
@@ -194,8 +193,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                   i === imageIndex ? "ring-green-500" : "ring-transparent"
                 }`}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={img} alt="" className="h-full w-full object-cover" />
+                <SafeImg src={img} alt="" className="h-full w-full object-cover" iconSize={20} />
               </button>
             ))}
           </div>

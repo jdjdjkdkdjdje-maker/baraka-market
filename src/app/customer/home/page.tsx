@@ -11,7 +11,7 @@ import { greeting, fmtDate } from "@/lib/customer-format";
 import { useCustomerStore } from "@/components/customer/Store";
 import BottomNav from "@/components/customer/BottomNav";
 import ProductCard from "@/components/customer/ProductCard";
-import { HomeSkeleton, ErrorState } from "@/components/customer/Shared";
+import { HomeSkeleton, ErrorState, SafeImg } from "@/components/customer/Shared";
 
 type HomeData = {
   banners: Banner[];
@@ -155,12 +155,12 @@ export default function HomePage() {
               >
                 {data.banners.map((b) => (
                   <div key={b.id} className="w-full shrink-0 snap-center px-4">
-                    <div className="relative h-40 overflow-hidden rounded-2xl">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
+                    <div className="relative h-40 overflow-hidden rounded-2xl bg-gradient-to-br from-green-600 to-emerald-700">
+                      <SafeImg
                         src={b.mobileImage || b.image}
                         alt={b.title}
                         className="h-full w-full object-cover"
+                        iconSize={40}
                       />
                       <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent p-4">
                         <p className="mt-2 max-w-[70%] text-lg font-extrabold leading-6 text-white">
@@ -204,8 +204,7 @@ export default function HomePage() {
                       style={{ backgroundColor: (c.color ?? "#16a34a") + "1a" }}
                     >
                       {c.image ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={c.image} alt={c.name} className="h-full w-full rounded-2xl object-cover" />
+                        <SafeImg src={c.image} alt={c.name} className="h-full w-full rounded-2xl object-cover" iconSize={24} />
                       ) : (
                         c.icon ?? "🛒"
                       )}

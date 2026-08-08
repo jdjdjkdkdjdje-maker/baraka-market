@@ -2,14 +2,14 @@
 
 import { useCallback, useEffect, useState, use } from "react";
 import Link from "next/link";
-import { Check, ImageOff, MapPin, Star, X } from "lucide-react";
+import { Check, MapPin, Star, X } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/customer-api";
 import {
   fmtSum, fmtDateTime, ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, ORDER_STATUS_FLOW,
   PAYMENT_METHOD_LABELS, PAYMENT_STATUS_LABELS,
 } from "@/lib/customer-format";
-import { TopBar, ErrorState, ListSkeleton } from "@/components/customer/Shared";
+import { TopBar, ErrorState, ListSkeleton, SafeImg } from "@/components/customer/Shared";
 
 type OrderDetail = {
   id: number;
@@ -193,14 +193,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                     href={`/customer/products/${it.productId}`}
                     className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-gray-50 ring-1 ring-gray-100"
                   >
-                    {it.productImage ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={it.productImage} alt={it.productName} className="h-full w-full object-cover" />
-                    ) : (
-                      <span className="flex h-full w-full items-center justify-center text-gray-300">
-                        <ImageOff size={20} />
-                      </span>
-                    )}
+                    <SafeImg src={it.productImage} alt={it.productName} className="h-full w-full object-cover" iconSize={20} />
                   </Link>
                   <div className="min-w-0 flex-1">
                     <p className="line-clamp-1 text-sm font-semibold text-gray-800">

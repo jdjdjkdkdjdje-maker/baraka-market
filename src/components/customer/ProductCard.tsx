@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Heart, Plus, Star, ImageOff } from "lucide-react";
+import { Heart, Plus, Star } from "lucide-react";
 import { fmtSum } from "@/lib/customer-format";
 import type { ProductCard as ProductCardType } from "@/lib/customer-api";
 import { useCustomerStore } from "./Store";
+import { SafeImg } from "./Shared";
 
 export default function ProductCard({ product }: { product: ProductCardType }) {
   const { favoriteIds, toggleFavorite, addToCart } = useCustomerStore();
@@ -14,19 +15,12 @@ export default function ProductCard({ product }: { product: ProductCardType }) {
   return (
     <div className="relative flex flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-100">
       <Link href={`/customer/products/${product.id}`} className="relative block aspect-square bg-gray-50">
-        {product.image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={product.image}
-            alt={product.name}
-            loading="lazy"
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <span className="flex h-full w-full items-center justify-center text-gray-300">
-            <ImageOff size={32} />
-          </span>
-        )}
+        <SafeImg
+          src={product.image}
+          alt={product.name}
+          className="h-full w-full object-cover"
+          iconSize={36}
+        />
         <div className="absolute left-2 top-2 flex flex-col gap-1">
           {(product.discountPercent ?? 0) > 0 && (
             <span className="rounded-lg bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">

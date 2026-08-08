@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Search, LayoutGrid, ChevronRight } from "lucide-react";
 import { api, type Category } from "@/lib/customer-api";
 import BottomNav from "@/components/customer/BottomNav";
-import { EmptyState, ErrorState, Shimmer } from "@/components/customer/Shared";
+import { EmptyState, ErrorState, Shimmer, SafeImg } from "@/components/customer/Shared";
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[] | null>(null);
@@ -65,8 +65,7 @@ export default function CategoriesPage() {
                 style={{ backgroundColor: (c.color ?? "#16a34a") + "1a" }}
               >
                 {c.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={c.image} alt={c.name} className="h-full w-full rounded-xl object-cover" />
+                  <SafeImg src={c.image} alt={c.name} className="h-full w-full rounded-xl object-cover" iconSize={22} />
                 ) : (
                   c.icon ?? "🛒"
                 )}
