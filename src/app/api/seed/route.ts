@@ -78,8 +78,7 @@ export async function POST() {
 
     // Insert Product Images
     const imageData = insertedProducts.flatMap((p, i) => [
-      { productId: p.id, url: `https://picsum.photos/seed/product${p.id}a/800/800`, isPrimary: true, sortOrder: 0 },
-      { productId: p.id, url: `https://picsum.photos/seed/product${p.id}b/800/800`, isPrimary: false, sortOrder: 1 },
+      { productId: p.id, url: `/img/products/p${p.id}.${p.id <= 10 ? "jpg" : "svg"}`, isPrimary: true, sortOrder: 0 },
     ]);
     await db.insert(productImages).values(imageData);
 
@@ -96,10 +95,10 @@ export async function POST() {
 
     // Insert Banners
     await db.insert(banners).values([
-      { title: "Yangi Mahsulotlar!", titleRu: "Новые товары!", subtitle: "Eng yangi va sifatli mahsulotlar", image: "https://picsum.photos/seed/banner1/1200/400", type: "main", sortOrder: 1, isActive: true },
-      { title: "Yozgi Chegirmalar", titleRu: "Летние скидки", subtitle: "50% gacha chegirma", image: "https://picsum.photos/seed/banner2/1200/400", type: "promo", sortOrder: 2, isActive: true },
-      { title: "Baraka Premium", titleRu: "Барака Премиум", subtitle: "Eng sifatli mahsulotlar kolleksiyasi", image: "https://picsum.photos/seed/banner3/1200/400", type: "brand", sortOrder: 3, isActive: true },
-      { title: "Meva va Sabzavotlar", titleRu: "Фрукты и Овощи", subtitle: "Yangi va tabiiy mahsulotlar", image: "https://picsum.photos/seed/banner4/1200/400", type: "category", sortOrder: 4, isActive: true },
+      { title: "Yangi Mahsulotlar!", titleRu: "Новые товары!", subtitle: "Eng yangi va sifatli mahsulotlar", image: "/img/banners/b1.svg", type: "main", sortOrder: 1, isActive: true },
+      { title: "Yozgi Chegirmalar", titleRu: "Летние скидки", subtitle: "50% gacha chegirma", image: "/img/banners/b2.svg", type: "promo", sortOrder: 2, isActive: true },
+      { title: "Baraka Premium", titleRu: "Барака Премиум", subtitle: "Eng sifatli mahsulotlar kolleksiyasi", image: "/img/banners/b3.svg", type: "brand", sortOrder: 3, isActive: true },
+      { title: "Meva va Sabzavotlar", titleRu: "Фрукты и Овощи", subtitle: "Yangi va tabiiy mahsulotlar", image: "/img/banners/b4.svg", type: "category", sortOrder: 4, isActive: true },
     ]);
 
     // Insert Coupons
@@ -151,7 +150,7 @@ export async function POST() {
           orderId: order.id,
           productId: product.id,
           productName: product.name,
-          productImage: `https://picsum.photos/seed/product${product.id}a/400/400`,
+          productImage: `/img/products/p${product.id}.${product.id <= 10 ? "jpg" : "svg"}`,
           quantity: qty,
           unitPrice: String(unitPrice),
           totalPrice: String(unitPrice * qty),

@@ -1,16 +1,10 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+// Eslatma: Google Fonts (Geist) tarmoq yopiq muhitlarda build xatosiga olib kelgani
+// uchun xavfsiz tizim shriftlariga o'tkazildi. UI o'zgarmaydi — globals.css dagi
+// --font-geist-sans o'zgaruvchisi saqlab qolindi.
+const fontVariables = "antialiased bg-gray-50";
 
 export const metadata: Metadata = {
   title: "Baraka Market — Admin Panel",
@@ -27,10 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="uz" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50`}
-        suppressHydrationWarning
-      >
+      <body className={fontVariables} suppressHydrationWarning>
         {children}
       </body>
     </html>

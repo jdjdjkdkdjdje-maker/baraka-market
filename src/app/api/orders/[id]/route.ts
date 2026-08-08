@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { orders, orderItems, users, products, orderStatusHistory } from "@/db/schema";
+import { orders, orderItems, users, products, orderStatusHistory, notifications } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
 
 export async function GET(
@@ -88,6 +88,32 @@ export async function PUT(
         status,
         comment,
       });
+
+      // Mijozga status o'zgarishi haqida bildirishnoma (mijozlar ilovasi uchun)
+      if (updated?.userId) {
+        const statusLabels: Record<string, string> = {
+          pending: "kutilmoqda",
+          confirmed: "tasdiqlandi",
+          preparing: "tayyorlanmoqda",
+          ready: "tayyor",
+          picked_up: "kuryerga topshirildi",
+          delivering: "yetkazilmoqda",
+          delivered: "yetkazib berildi",
+          cancelled: "bekor qilindi",
+          returned: "qaytarildi",
+        };
+        try {
+          await db.insert(notifications).values({
+            userId: updated.userId,
+            title: "Buyurtma holati yangilandi",
+            body: `№${updated.orderNumber} raqamli buyurtmangiz ${statusLabels[status] ?? status}.`,
+            type: "order",
+            data: { orderId: updated.id, orderNumber: updated.orderNumber, status },
+          });
+        } catch (notifyError) {
+          console.error("Order notification error:", notifyError);
+        }
+      }
     }
 
     return NextResponse.json({ order: updated });
