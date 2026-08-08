@@ -88,6 +88,7 @@ export const users = pgTable("users", {
   firstName: varchar("first_name", { length: 100 }),
   lastName: varchar("last_name", { length: 100 }),
   avatar: text("avatar"),
+  passwordHash: text("password_hash"),
   gender: genderEnum("gender"),
   birthDate: timestamp("birth_date"),
   role: userRoleEnum("role").default("customer").notNull(),
