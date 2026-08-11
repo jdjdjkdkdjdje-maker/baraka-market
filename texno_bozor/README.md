@@ -25,9 +25,10 @@ asosida qurilgan, Android telefonga o'rnatiladigan `.apk` sifatida tarqatiladi.
 
 - **Flutter + Dart**, state management: **Riverpod**, navigatsiya: **GoRouter**
 - **SQLite + Drift** (lokal baza, drift codegen bilan)
-- **Dio** (faqat TEXNO AI so'rovlari uchun)
-- **flutter_secure_storage** (AI API kaliti xavfsiz saqlanadi)
-- **Repository pattern** — keyinchalik REST API + PostgreSQL'ga o'tish oson
+- **Dio** (TEXNO AI so'rovlari va ixtiyoriy REST rejimi uchun)
+- **flutter_secure_storage** (AI API kaliti va server tokeni xavfsiz saqlanadi)
+- **Repository pattern + RepositoryFactory** — REST API + PostgreSQL'ga o'tish
+  bitta sozlama bilan (UI kodi o'zgarmaydi)
 
 ## Tuzilma
 
@@ -40,9 +41,10 @@ lib/
 │   ├── utils/       # Format, specs parser
 │   └── widgets/     # Umumiy widgetlar (ProductCard va h.k.)
 ├── data/
-│   ├── database/    # Drift sxema + demo katalog seed
+│   ├── database/    # Drift sxema + katalog seed
 │   ├── models/      # Enumlar, CartEntry, ProductFilter va h.k.
-│   ├── repositories/# Product/Cart/Order/User/Favorites/Review/... (abstraksiya + Drift impl.)
+│   ├── remote/      # REST qatlami: ApiClient, ApiMappers, BackendConfig
+│   ├── repositories/# Interfeyslar + Drift impl. + api/ (REST impl.) + RepositoryFactory
 │   └── services/    # AuthService, PaymentService, AiService, Connectivity
 ├── features/        # home, catalog, search, product, cart, checkout,
 │                    # orders, favorites, profile, pc_builder, texno_ai, auth, splash
@@ -89,10 +91,53 @@ mavjud bo'lmagan mahsulot yoki narx o'ylab topilmaydi.
 
 ## Serverga tayyor arxitektura
 
-Hozir barcha ma'lumot Drift (SQLite)'da. Keyinchalik server ulansa:
+Sukut bo'yicha barcha ma'lumot Drift (SQLite)'da — server umuman kerak emas.
+Lekin REST qatlami **allaqachon yozilgan**, shuning uchun kelajakda server
+ulansa kod qayta yozilmaydi:
 
-- `ProductRepository`, `CartRepository`, `OrderRepository`, `UserRepository`
-  va boshqalarning **REST implementatsiyasi** yoziladi va `providers.dart`da
-  almashtiriladi — UI kodi o'zgarmaydi.
-- `AuthService` → OTP/SMS autentifikatsiya.
-- `PaymentService` → real Click/Payme gatewaylari.
+- `lib/data/repositories/api/` — `ProductRepository`, `CategoryRepository`,
+  `CartRepository`, `OrderRepository`, `UserRepository` interfeyslarining
+  REST implementatsiyalari (offline-first: javob lokal bazaga keshlanadi,
+  internet yo'q bo'lsa keshdan o'qiladi).
+- `RepositoryFactory` (`lib/data/repositories/repository_factory.dart`) —
+  rejimga qarab Drift yoki REST implementatsiyani qaytaradi. Ekranlar faqat
+  abstrakt interfeyslar bilan ishlaydi, ya'ni **UI kodi o'zgarmaydi**.
+- Yoqish: **Profil → Sozlamalar → Ma'lumot manbai → Server**, so'ng
+  base URL (masalan `https://api.texnobozor.uz/v1`) va token. "Tekshirish"
+  tugmasi `GET /health` ni chaqiradi. `.env` yoki `--dart-define` orqali ham:
+  `API_MODE=remote`, `API_BASE_URL=...`, `API_TOKEN=...`.
+- Sevimlilar, qidiruv tarixi, sharhlar va PC yig'ilmalar server rejimida ham
+  qurilma ichida qoladi.
+
+Kutilayotgan endpointlar:
+
+```
+GET    /health
+GET    /products            GET /products/:id     GET /products?search=
+GET    /products/brands     GET /categories
+GET    /cart                POST /cart            PATCH|DELETE /cart/:productId
+DELETE /cart                PUT  /cart
+GET    /orders              GET /orders/:id       POST /orders
+PATCH  /orders/:id/status
+GET    /users/me            POST /users           PATCH|DELETE /users/me
+```
+
+Javob `[...]` yoki `{data: [...]}` / `{items: [...]}` / `{results: [...]}`
+ko'rinishida bo'lishi mumkin — `ApiMappers` ikkalasini ham tushunadi,
+maydon nomlari `camelCase` va `snake_case` bo'lsa ham.
+
+Qolgan qadamlar: `AuthService` → OTP/SMS autentifikatsiya,
+`PaymentService` → real Click/Payme gatewaylari.
+
+## Testlar
+
+```bash
+cd texno_bozor
+flutter test
+```
+
+- `test/pricing_test.dart` — narx, chegirma, yetkazish, formatlash
+- `test/repositories_test.dart` — katalog, savat, buyurtma, sevimlilar, profil
+- `test/compatibility_test.dart` — PC Builder moslik qoidalari
+- `test/api_mappers_test.dart` — JSON ↔ model konvertatsiyasi
+- `test/repository_factory_test.dart` — Lokal/Server rejim almashinuvi
