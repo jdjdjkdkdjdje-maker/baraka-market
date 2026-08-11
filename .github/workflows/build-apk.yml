@@ -1,197 +1,81 @@
-name: APK yaratish
+name: TEXNO BOZOR APK
 
 on:
-  workflow_dispatch:
   push:
+    branches:
+      - "arena/019ff0b8-baraka-market"
+      - main
     paths:
+      - "texno_bozor/**"
       - ".github/workflows/build-apk.yml"
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  saytni-tuzatish:
-    name: Sayt dizaynini tuzatish
+  build-apk:
+    name: Flutter release APK build
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: texno_bozor
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: globals.css dagi eski CSS resetni olib tashlash
-        run: |
-          python3 - <<'PYEOF'
-          import re, pathlib
-          p = pathlib.Path("src/app/globals.css")
-          s = p.read_text()
-          n = re.sub(r"\*\s*\{\s*box-sizing:\s*border-box;\s*padding:\s*0;\s*margin:\s*0;\s*\}\s*\n?", "", s, count=1)
-          if n != s:
-              p.write_text(n)
-              print("CSS tuzatildi")
-          else:
-              print("CSS allaqachon toza")
-          PYEOF
-
-      - name: O'zgarishni saqlash (Vercel avtomatik qayta quradi)
-        run: |
-          if ! git diff --quiet; then
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add -A
-            git commit -m "Dizayn tuzatildi: utility-klasslarni buzuvchi CSS reset olib tashlandi"
-            git push
-          fi
-
-  apk-qurish:
-    name: APK fayllarni qurish
-    needs: saytni-tuzatish
-    runs-on: ubuntu-latest
-    steps:
       - name: Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
-      - name: Gradle 8.9
-        uses: gradle/actions/setup-gradle@v4
+      - name: Flutter SDK
+        uses: subosito/flutter-action@v2
         with:
-          gradle-version: "8.9"
+          flutter-version: "3.27.4"
+          channel: stable
 
-      - name: Android litsenziyalarini qabul qilish
+      - name: Android litsenziyalari
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
 
-      - name: Ilova ikonkasini olish
+      - name: Pub get
+        run: flutter pub get
+
+      - name: Drift codegen
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Analiz
+        run: flutter analyze --no-fatal-warnings --no-fatal-infos
+
+      - name: Release APK build
+        run: flutter build apk --release
+
+      - name: APK ni tayyorlash
+        working-directory: .
         run: |
-          curl -fsSL "https://baraka-market-git-main-baraka-market.vercel.app/logo.png" -o /tmp/icon.png \
-            || convert -size 512x512 xc:'#16a34a' /tmp/icon.png
-
-      - name: WebView wrapper loyihalarini yaratish
-        run: |
-          make_app() {
-          DIR="$1"; APPID="$2"; NAME="$3"; URL="$4"
-          mkdir -p "$DIR/app/src/main/java/uz/baraka/app"
-          mkdir -p "$DIR/app/src/main/res/mipmap-mdpi" "$DIR/app/src/main/res/mipmap-xhdpi" "$DIR/app/src/main/res/mipmap-xxhdpi"
-          cp /tmp/icon.png "$DIR/app/src/main/res/mipmap-mdpi/ic_launcher.png"
-          cp /tmp/icon.png "$DIR/app/src/main/res/mipmap-xhdpi/ic_launcher.png"
-          cp /tmp/icon.png "$DIR/app/src/main/res/mipmap-xxhdpi/ic_launcher.png"
-          cat > "$DIR/settings.gradle" <<'EOF'
-          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
-          dependencyResolutionManagement { repositories { google(); mavenCentral() } }
-          rootProject.name = "barakaapp"
-          include ':app'
-          EOF
-          cat > "$DIR/build.gradle" <<'EOF'
-          plugins { id 'com.android.application' version '8.5.2' apply false }
-          EOF
-          cat > "$DIR/app/build.gradle" <<EOF
-          plugins { id 'com.android.application' }
-          android {
-            namespace 'uz.baraka.app'
-            compileSdk 34
-            defaultConfig {
-              applicationId "$APPID"
-              minSdk 24
-              targetSdk 34
-              versionCode 1
-              versionName "1.0"
-              resValue "string", "app_name", "$NAME"
-              resValue "string", "start_url", "$URL"
-            }
-            compileOptions {
-              sourceCompatibility JavaVersion.VERSION_17
-              targetCompatibility JavaVersion.VERSION_17
-            }
-          }
-          EOF
-          cat > "$DIR/app/src/main/AndroidManifest.xml" <<'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-            <uses-permission android:name="android.permission.INTERNET"/>
-            <application android:label="@string/app_name" android:icon="@mipmap/ic_launcher">
-              <activity android:name=".MainActivity" android:exported="true"
-                android:configChanges="orientation|screenSize|keyboardHidden"
-                android:theme="@android:style/Theme.Material.Light.NoActionBar">
-                <intent-filter>
-                  <action android:name="android.intent.action.MAIN"/>
-                  <category android:name="android.intent.category.LAUNCHER"/>
-                </intent-filter>
-              </activity>
-            </application>
-          </manifest>
-          EOF
-          cat > "$DIR/app/src/main/java/uz/baraka/app/MainActivity.java" <<'EOF'
-          package uz.baraka.app;
-
-          import android.annotation.SuppressLint;
-          import android.app.Activity;
-          import android.os.Bundle;
-          import android.webkit.CookieManager;
-          import android.webkit.WebSettings;
-          import android.webkit.WebView;
-          import android.webkit.WebViewClient;
-
-          public class MainActivity extends Activity {
-            private WebView web;
-
-            @SuppressLint("SetJavaScriptEnabled")
-            @Override
-            protected void onCreate(Bundle saved) {
-              super.onCreate(saved);
-              web = new WebView(this);
-              WebSettings s = web.getSettings();
-              s.setJavaScriptEnabled(true);
-              s.setDomStorageEnabled(true);
-              CookieManager.getInstance().setAcceptCookie(true);
-              CookieManager.getInstance().setAcceptThirdPartyCookies(web, true);
-              web.setWebViewClient(new WebViewClient());
-              setContentView(web);
-              if (saved == null) web.loadUrl(getString(R.string.start_url));
-              else web.restoreState(saved);
-            }
-
-            @Override
-            public void onBackPressed() {
-              if (web != null && web.canGoBack()) web.goBack();
-              else super.onBackPressed();
-            }
-
-            @Override
-            protected void onSaveInstanceState(Bundle out) {
-              super.onSaveInstanceState(out);
-              web.saveState(out);
-            }
-          }
-          EOF
-          }
-          make_app mijoz uz.baraka.market "Baraka Market" "https://baraka-market-git-main-baraka-market.vercel.app/customer"
-          make_app admin uz.baraka.admin "Baraka Admin" "https://baraka-market-git-main-baraka-market.vercel.app/dashboard"
-
-      - name: Mijoz ilovasi APK
-        run: gradle -p mijoz assembleDebug --no-daemon
-
-      - name: Admin ilovasi APK
-        run: gradle -p admin assembleDebug --no-daemon
-
-      - name: APK fayllarni yig'ish
-        run: |
-          mkdir -p out
-          cp mijoz/app/build/outputs/apk/debug/app-debug.apk out/baraka-market-mijoz.apk
-          cp admin/app/build/outputs/apk/debug/app-debug.apk out/baraka-market-admin.apk
-          ls -la out/
+          cp texno_bozor/build/app/outputs/flutter-apk/app-release.apk texno-bozor.apk
+          ls -lh texno-bozor.apk
 
       - name: Artefakt sifatida saqlash
         uses: actions/upload-artifact@v4
         with:
-          name: apk-fayllar
-          path: out/*.apk
+          name: texno-bozor-apk
+          path: texno-bozor.apk
+          retention-days: 30
 
-      - name: Releases sahifasiga chiqarish
+      - name: Release'ga chiqarish
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: apk-v${{ github.run_number }}
-          name: "Baraka Market APK (${{ github.run_number }}-son)"
+          tag_name: texno-apk-v${{ github.run_number }}
+          name: "TEXNO BOZOR APK #${{ github.run_number }}"
           body: |
-            📱 baraka-market-mijoz.apk — MIJOZLAR ILOVASI (xaridorlar uchun)
-            🖥 baraka-market-admin.apk — ADMIN ILOVASI (do'kon egasi uchun)
+            📱 **texno-bozor.apk** — TEXNO BOZOR elektronika marketplace ilovasi.
 
-            O'rnatish: APK faylni telefonga yuklab oching. "Noma'lum manbalar" so'ralsa — ruxsat bering.
-          files: out/*.apk
+            O'rnatish: APK faylni telefonga yuklab oching.
+            "Noma'lum manbalar" so'ralsa — ruxsat bering.
+
+            Ilova to'liq offline ishlaydi (internet faqat TEXNO AI uchun kerak).
+          files: texno-bozor.apk
+          make_latest: true
