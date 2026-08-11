@@ -292,23 +292,6 @@ class OrderDetailScreen extends ConsumerWidget {
                   icon: const Icon(Icons.cancel_outlined),
                   label: const Text('Buyurtmani bekor qilish'),
                 ),
-              if (status != OrderStatus.delivered &&
-                  status != OrderStatus.cancelled)
-                Padding(
-                  padding: const EdgeInsets.only(top: 10),
-                  child: TextButton.icon(
-                    onPressed: () {
-                      final next =
-                          OrderStatus.values[status.index + 1];
-                      ref
-                          .read(orderRepositoryProvider)
-                          .updateStatus(orderId, next);
-                    },
-                    icon: const Icon(Icons.arrow_forward_rounded, size: 16),
-                    label: const Text(
-                        'Keyingi bosqichga o\u2018tkazish (demo)'),
-                  ),
-                ),
               const SizedBox(height: 24),
             ],
           );

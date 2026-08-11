@@ -148,6 +148,7 @@ class HomeScreen extends ConsumerWidget {
                   final cat = cats[i];
                   return _CategoryTile(
                     name: cat.name,
+                    categoryId: cat.id,
                     icon: iconForCategory(cat.icon),
                     onTap: () => context.go('/catalog?cat=${cat.id}'),
                   );
@@ -289,11 +290,13 @@ class HomeScreen extends ConsumerWidget {
 class _CategoryTile extends StatelessWidget {
   const _CategoryTile({
     required this.name,
+    required this.categoryId,
     required this.icon,
     required this.onTap,
   });
 
   final String name;
+  final String categoryId;
   final IconData icon;
   final VoidCallback onTap;
 
@@ -315,17 +318,27 @@ class _CategoryTile extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                padding: const EdgeInsets.all(9),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: AppColors.gradient
-                        .map((c) => c.withOpacity(0.16))
-                        .toList(),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.asset(
+                  'assets/categories/$categoryId.jpg',
+                  width: 44,
+                  height: 44,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stack) => Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: AppColors.gradient
+                            .map((c) => c.withOpacity(0.16))
+                            .toList(),
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(icon, size: 21, color: AppColors.primary),
                   ),
-                  shape: BoxShape.circle,
                 ),
-                child: Icon(icon, size: 21, color: AppColors.primary),
               ),
               const SizedBox(height: 7),
               Text(

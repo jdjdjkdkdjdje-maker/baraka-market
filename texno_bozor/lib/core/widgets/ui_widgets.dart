@@ -174,8 +174,8 @@ class RatingStars extends StatelessWidget {
   }
 }
 
-/// Mahsulot rasmi o'rniga: gradient + emoji. Rasmlar uchun keyinchalik
-/// cached_network_image ishlatiladi (imageUrl bo'lsa).
+/// Mahsulot rasmi: kategoriya bo'yicha lokal asset-rasm.
+/// Rasm topilmasa — gradient + emoji fallback (offline-first).
 class ProductVisual extends StatelessWidget {
   const ProductVisual({
     super.key,
@@ -190,6 +190,22 @@ class ProductVisual extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return SizedBox(
+      height: height,
+      width: double.infinity,
+      child: Image.asset(
+        'assets/categories/${product.categoryId}.jpg',
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stack) => _fallback(),
+        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+          if (wasSynchronouslyLoaded || frame != null) return child;
+          return _fallback();
+        },
+      ),
+    );
+  }
+
+  Widget _fallback() {
     return Container(
       height: height,
       decoration: BoxDecoration(

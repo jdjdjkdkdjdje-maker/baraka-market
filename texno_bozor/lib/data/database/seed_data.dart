@@ -1845,7 +1845,7 @@ Future<void> seedDatabase(AppDatabase db) async {
             price: _seedProducts[i].price,
             oldPrice: Value(_seedProducts[i].oldPrice),
             rating: Value(_seedProducts[i].rating),
-            reviewsCount: Value(_seedProducts[i].reviews),
+            reviewsCount: const Value(0),
             stock: Value(_seedProducts[i].stock),
             warranty: Value(_seedProducts[i].warranty),
             description: Value(_seedProducts[i].description),
@@ -1858,61 +1858,5 @@ Future<void> seedDatabase(AppDatabase db) async {
           ),
       ],
     );
-  });
-
-  // Demo sharhlar.
-  await db.batch((batch) {
-    batch.insertAll(db.reviews, [
-      ReviewsCompanion.insert(
-        id: 'rev_seed_1',
-        productId: 'p_galaxy_s24_ultra',
-        userName: 'Aziz',
-        rating: 5.0,
-        reviewText: const Value(
-            'Kamera va batareya juda zo\u2018r. Yetkazib berish ham tez bo\u2018ldi.'),
-        createdAt: now - 5 * 24 * hour,
-      ),
-      ReviewsCompanion.insert(
-        id: 'rev_seed_2',
-        productId: 'p_galaxy_s24_ultra',
-        userName: 'Malika',
-        rating: 4.5,
-        reviewText: const Value('S Pen juda qulay, ekran ajoyib.'),
-        createdAt: now - 3 * 24 * hour,
-      ),
-      ReviewsCompanion.insert(
-        id: 'rev_seed_3',
-        productId: 'p_rtx_5070',
-        userName: 'Jasur',
-        rating: 5.0,
-        reviewText: const Value(
-            '2K o\u2018yinlarda bemalol tortadi. Narxi ham bozorga nisbatan yaxshi ekan.'),
-        createdAt: now - 2 * 24 * hour,
-      ),
-      ReviewsCompanion.insert(
-        id: 'rev_seed_4',
-        productId: 'p_redmi_note_13_pro',
-        userName: 'Nilufar',
-        rating: 4.5,
-        reviewText: const Value('Narxiga qaraganda juda yaxshi telefon.'),
-        createdAt: now - 6 * 24 * hour,
-      ),
-      ReviewsCompanion.insert(
-        id: 'rev_seed_5',
-        productId: 'p_macbook_air_m2',
-        userName: 'Bekzod',
-        rating: 5.0,
-        reviewText: const Value('Juda yengil va tez. Batareya kunga yetadi.'),
-        createdAt: now - 4 * 24 * hour,
-      ),
-      ReviewsCompanion.insert(
-        id: 'rev_seed_6',
-        productId: 'p_ak400',
-        userName: 'Sardor',
-        rating: 4.5,
-        reviewText: const Value('Ryzen 5 ni bemalol sovutadi, jim ishlaydi.'),
-        createdAt: now - 1 * 24 * hour,
-      ),
-    ]);
   });
 }
