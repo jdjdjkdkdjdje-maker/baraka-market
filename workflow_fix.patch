@@ -1,0 +1,12 @@
+diff --git a/.github/workflows/build-apk.yml b/.github/workflows/build-apk.yml
+--- a/.github/workflows/build-apk.yml
++++ b/.github/workflows/build-apk.yml
+@@ -3,7 +3,7 @@ name: TEXNO BOZOR APK
+ on:
+   push:
+     branches:
+-      - "arena/019ff0b8-baraka-market"
++      - "arena/**"
+       - main
+     paths:
+       - "texno_bozor/**"
