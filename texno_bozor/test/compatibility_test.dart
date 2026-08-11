@@ -348,6 +348,47 @@ void main() {
     });
   });
 
+  group('Muammo kodlari', () {
+    test('har bir xato barqaror kodga ega', () {
+      final report = CompatibilityChecker.check({
+        PcSlot.cpu: ryzenAm5,
+        PcSlot.motherboard: mbAm4,
+      });
+      expect(report.errors, isNotEmpty);
+      for (final issue in report.errors) {
+        expect(issue.code, isNotEmpty);
+      }
+      expect(report.errors.map((e) => e.code), contains('cpu_mb_socket'));
+    });
+
+    test('muammo tegishli slotlarni ko\u2018rsatadi', () {
+      final report = CompatibilityChecker.check({
+        PcSlot.cpu: ryzenAm5,
+        PcSlot.motherboard: mbAm4,
+      });
+      final issue =
+          report.errors.firstWhere((e) => e.code == 'cpu_mb_socket');
+      expect(issue.slots, contains(PcSlot.cpu));
+      expect(issue.slots, contains(PcSlot.motherboard));
+      expect(issue.slots, isNot(contains(PcSlot.cooler)));
+    });
+
+    test('quvvat yetishmovchiligi faqat psu slotiga tegishli', () {
+      final report = CompatibilityChecker.check({
+        PcSlot.cpu: ryzenAm5,
+        PcSlot.gpu: gpuBig,
+        PcSlot.psu: part(
+          id: 'psu-300',
+          category: 'psu',
+          specs: const {'quvvat': '300', 'uzunlik': '140'},
+        ),
+      });
+      final issue =
+          report.errors.firstWhere((e) => e.code == 'psu_insufficient');
+      expect(issue.slots, {PcSlot.psu});
+    });
+  });
+
   group('compatibleOptions', () {
     test('mos kelmaydigan platalarni filtrlaydi', () {
       final options = CompatibilityChecker.compatibleOptions(
@@ -365,6 +406,83 @@ void main() {
         selected: const {},
       );
       expect(options.length, 2);
+    });
+
+    test('grafikasiz protsessor sovutgich ro\u2018yxatini bloklamaydi', () {
+      // intelLga da integratsiyalangan grafika yo'q va videokarta hali
+      // tanlanmagan — bu mavjud muammo sovutgichlarga taalluqli emas.
+      final options = CompatibilityChecker.compatibleOptions(
+        slot: PcSlot.cooler,
+        candidates: [coolerAm5, coolerWeak],
+        selected: {PcSlot.cpu: intelLga},
+      );
+      expect(options.length, 2);
+    });
+
+    test('grafikasiz protsessorda videokartalar mos ko\u2018rinadi', () {
+      final options = CompatibilityChecker.compatibleOptions(
+        slot: PcSlot.gpu,
+        candidates: [gpuBig, gpuSmall],
+        selected: {PcSlot.cpu: intelLga},
+      );
+      expect(options.length, 2);
+    });
+
+    test('kuchsiz quvvat bloki sovutgichlarni bloklamaydi', () {
+      final weakPsu = part(
+        id: 'psu-300',
+        category: 'psu',
+        specs: const {'quvvat': '300', 'uzunlik': '140'},
+      );
+      final options = CompatibilityChecker.compatibleOptions(
+        slot: PcSlot.cooler,
+        candidates: [coolerAm5],
+        selected: {
+          PcSlot.cpu: ryzenAm5,
+          PcSlot.gpu: gpuBig,
+          PcSlot.psu: weakPsu,
+          PcSlot.pcCase: caseAtx,
+        },
+      );
+      expect(options, hasLength(1));
+    });
+
+    test('kuchsiz quvvat bloki o\u2018rniga kuchlisi taklif qilinadi', () {
+      final weakPsu = part(
+        id: 'psu-300',
+        category: 'psu',
+        specs: const {'quvvat': '300', 'uzunlik': '140'},
+      );
+      final options = CompatibilityChecker.compatibleOptions(
+        slot: PcSlot.psu,
+        candidates: [weakPsu, psu1000],
+        selected: {
+          PcSlot.cpu: ryzenAm5,
+          PcSlot.gpu: gpuBig,
+          PcSlot.pcCase: caseAtx,
+        },
+      );
+      expect(options.map((p) => p.id), ['psu-1000']);
+    });
+
+    test('almashtirilayotgan qismning o\u2018zi hisobga olinmaydi', () {
+      // Slotda allaqachon nomos plata turibdi — nomzodlar shunga qaramay
+      // to'g'ri baholanishi kerak.
+      final options = CompatibilityChecker.compatibleOptions(
+        slot: PcSlot.motherboard,
+        candidates: [mbAm5, mbAm4],
+        selected: {PcSlot.cpu: ryzenAm5, PcSlot.motherboard: mbAm4},
+      );
+      expect(options.map((p) => p.id), ['mb-am5']);
+    });
+
+    test('korpus tanlanganda uzun videokarta chiqarib tashlanadi', () {
+      final options = CompatibilityChecker.compatibleOptions(
+        slot: PcSlot.gpu,
+        candidates: [gpuBig, gpuSmall],
+        selected: {PcSlot.pcCase: caseSmall},
+      );
+      expect(options.map((p) => p.id), ['gpu-small']);
     });
   });
 }

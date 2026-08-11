@@ -25,10 +25,24 @@ enum PcSlot {
 enum IssueLevel { error, warning, info }
 
 class CompatibilityIssue {
-  const CompatibilityIssue(this.level, this.message);
+  const CompatibilityIssue(
+    this.level,
+    this.message, {
+    this.code = '',
+    this.slots = const {},
+  });
 
   final IssueLevel level;
   final String message;
+
+  /// Muammoning barqaror kodi (matndan mustaqil). Filtrlash va testlar
+  /// aynan shu kodga tayanadi.
+  final String code;
+
+  /// Muammo qaysi slotlarga tegishli. Bu qism tanlash oynasida kerak:
+  /// masalan protsessor bilan bog'liq xato sovutgich ro'yxatini
+  /// "mos emas" deb belgilab qo'ymasligi uchun.
+  final Set<PcSlot> slots;
 
   bool get isError => level == IssueLevel.error;
 }
@@ -121,11 +135,15 @@ class CompatibilityChecker {
             IssueLevel.error,
             'Protsessor soketi ($cpuSocket) motherboard soketiga '
             '($mbSocket) to\u2018g\u2018ri kelmaydi.',
+            code: 'cpu_mb_socket',
+            slots: const {PcSlot.cpu, PcSlot.motherboard},
           ));
         } else {
           issues.add(CompatibilityIssue(
             IssueLevel.info,
             'Protsessor va motherboard soketi mos: $cpuSocket.',
+            code: 'cpu_mb_socket_ok',
+            slots: const {PcSlot.cpu, PcSlot.motherboard},
           ));
         }
       }
@@ -141,6 +159,8 @@ class CompatibilityChecker {
             IssueLevel.error,
             'Motherboard $mbMemory xotirani qo\u2018llaydi, tanlangan modul '
             'esa $ramType.',
+            code: 'mb_ram_type',
+            slots: const {PcSlot.motherboard, PcSlot.ram},
           ));
         }
       }
@@ -155,6 +175,8 @@ class CompatibilityChecker {
           IssueLevel.error,
           'Protsessor $cpuMemory xotira bilan ishlaydi, siz $ramType '
           'tanladingiz.',
+          code: 'cpu_ram_type',
+          slots: const {PcSlot.cpu, PcSlot.ram},
         ));
       }
     }
@@ -170,6 +192,8 @@ class CompatibilityChecker {
         issues.add(CompatibilityIssue(
           IssueLevel.error,
           '$mbForm motherboard $caseForm korpusga sig\u2018maydi.',
+          code: 'case_mb_form',
+          slots: const {PcSlot.motherboard, PcSlot.pcCase},
         ));
       }
     }
@@ -183,6 +207,8 @@ class CompatibilityChecker {
           IssueLevel.error,
           'Videokarta uzunligi $gpuLength mm — korpusda faqat $maxLength mm '
           'joy bor.',
+          code: 'case_gpu_length',
+          slots: const {PcSlot.gpu, PcSlot.pcCase},
         ));
       }
     }
@@ -199,6 +225,8 @@ class CompatibilityChecker {
           IssueLevel.error,
           'Sovutgich balandligi $coolerHeight mm — korpusga $maxHeight mm '
           'gacha sig\u2018adi.',
+          code: 'case_cooler_height',
+          slots: const {PcSlot.cooler, PcSlot.pcCase},
         ));
       }
     }
@@ -213,6 +241,8 @@ class CompatibilityChecker {
         issues.add(CompatibilityIssue(
           IssueLevel.error,
           'Sovutgich $cpuSocket soketini qo\u2018llamaydi.',
+          code: 'cooler_socket',
+          slots: const {PcSlot.cooler, PcSlot.cpu},
         ));
       }
       final coolerTdp = cooler.specInt('tdp');
@@ -222,6 +252,8 @@ class CompatibilityChecker {
           IssueLevel.warning,
           'Protsessor ${cpuTdp}W issiqlik chiqaradi, sovutgich esa '
           '${coolerTdp}W gacha mo\u2018ljallangan.',
+          code: 'cooler_tdp',
+          slots: const {PcSlot.cooler, PcSlot.cpu},
         ));
       }
     }
@@ -234,6 +266,8 @@ class CompatibilityChecker {
           IssueLevel.error,
           'Bu protsessorda integratsiyalangan grafika yo\u2018q — '
           'videokarta qo\u2018shish shart.',
+          code: 'cpu_needs_gpu',
+          slots: {PcSlot.cpu, PcSlot.gpu},
         ));
       }
     }
@@ -255,17 +289,27 @@ class CompatibilityChecker {
             IssueLevel.error,
             'Quvvat bloki yetarli emas: tizim ~${watts}W talab qiladi, '
             'blok esa ${psuWatts}W.',
+            // Quvvat yetishmovchiligi asosan protsessor va videokartaga
+            // bog'liq, shuning uchun ular ham "mos emas" deb belgilanadi.
+            code: 'psu_insufficient',
+            // Faqat quvvat bloki: yechim — kuchliroq blok tanlash, boshqa
+            // qismlarni ro'yxatdan chiqarib tashlash emas.
+            slots: const {PcSlot.psu},
           ));
         } else if (psuWatts < needed) {
           issues.add(CompatibilityIssue(
             IssueLevel.warning,
             'Quvvat bloki chegarada ishlaydi (${psuWatts}W). '
             'Kamida ${needed}W tavsiya etiladi.',
+            code: 'psu_tight',
+            slots: const {PcSlot.psu},
           ));
         } else {
           issues.add(CompatibilityIssue(
             IssueLevel.info,
             'Quvvat bloki yetarli: ${psuWatts}W (tizim ~${watts}W).',
+            code: 'psu_ok',
+            slots: const {PcSlot.psu},
           ));
         }
       }
@@ -277,6 +321,8 @@ class CompatibilityChecker {
             IssueLevel.warning,
             'Videokarta ishlab chiqaruvchisi ${gpuNeeds}W quvvat blokini '
             'tavsiya qiladi.',
+            code: 'gpu_psu_recommend',
+            slots: const {PcSlot.psu, PcSlot.gpu},
           ));
         }
       }
@@ -290,6 +336,8 @@ class CompatibilityChecker {
         issues.add(CompatibilityIssue(
           IssueLevel.error,
           'Quvvat bloki uzunligi $psuLength mm — korpusda $maxPsu mm joy bor.',
+          code: 'case_psu_length',
+          slots: const {PcSlot.psu, PcSlot.pcCase},
         ));
       }
     }
@@ -300,6 +348,8 @@ class CompatibilityChecker {
         issues.add(CompatibilityIssue(
           IssueLevel.warning,
           '${product.name} hozir omborda yo\u2018q.',
+          code: 'out_of_stock',
+          slots: {slot},
         ));
       }
     });
@@ -320,15 +370,36 @@ class CompatibilityChecker {
   ///
   /// Masalan CPU tanlangan bo'lsa, motherboard ro'yxatida faqat mos soketli
   /// platalar qoladi.
+  ///
+  /// Ikki shart birga tekshiriladi, aks holda foydalanuvchi tupikka tushadi:
+  ///  1. Xato aynan shu nomzod qo'shilgandan keyin YANGI paydo bo'lishi kerak
+  ///     (allaqachon mavjud muammo boshqa slotlarni bloklamasin);
+  ///  2. Xato shu slotga tegishli bo'lishi kerak — masalan quvvat bloki
+  ///     kuchsizligi sovutgichlar ro'yxatini bo'shatib qo'ymasin, uni
+  ///     quvvat blokini almashtirib tuzatiladi.
   static List<Product> compatibleOptions({
     required PcSlot slot,
     required List<Product> candidates,
     required Map<PcSlot, Product> selected,
   }) {
+    final baseline = _errorKeys(
+      check(Map<PcSlot, Product>.from(selected)..remove(slot)),
+    );
+
     return candidates.where((candidate) {
       final trial = Map<PcSlot, Product>.from(selected)..[slot] = candidate;
-      final report = check(trial);
-      return report.errors.isEmpty;
+      final blocking = check(trial).errors.where((issue) {
+        final isNew = !baseline.contains(_key(issue));
+        final isRelated = issue.slots.isEmpty || issue.slots.contains(slot);
+        return isNew && isRelated;
+      });
+      return blocking.isEmpty;
     }).toList();
   }
+
+  static String _key(CompatibilityIssue issue) =>
+      '${issue.code}|${issue.message}';
+
+  static Set<String> _errorKeys(BuildReport report) =>
+      report.errors.map(_key).toSet();
 }

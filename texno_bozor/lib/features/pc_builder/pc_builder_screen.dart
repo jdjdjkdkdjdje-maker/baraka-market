@@ -498,11 +498,20 @@ class _PartPickerState extends State<_PartPicker> {
           ),
           Expanded(
             child: items.isEmpty
-                ? const EmptyState(
+                ? EmptyState(
                     icon: Icons.extension_off_rounded,
                     title: 'Mos variant yo\u2018q',
-                    message: 'Boshqa qismlarni o\u2018zgartirib '
-                        'ko\u2018ring yoki filtrni o\u2018chiring',
+                    message: _onlyCompatible
+                        ? 'Tanlangan qismlar bilan mos keladigan '
+                            '${widget.slot.label.toLowerCase()} topilmadi. '
+                            'Barcha variantlarni ko\u2018rish uchun filtrni '
+                            'o\u2018chiring yoki boshqa qismni almashtiring.'
+                        : 'Bu turkumda hozircha mahsulot yo\u2018q.',
+                    actionLabel:
+                        _onlyCompatible ? 'Barchasini ko\u2018rsatish' : null,
+                    onAction: _onlyCompatible
+                        ? () => setState(() => _onlyCompatible = false)
+                        : null,
                   )
                 : ListView.separated(
                     controller: controller,
