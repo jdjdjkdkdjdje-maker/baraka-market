@@ -1,143 +1,163 @@
-# TEXNO BOZOR — Flutter APK
+# TEXNO BOZOR — Flutter Android ilovasi
 
-**TEXNO BOZOR** — offline-first elektronika marketplace ilovasi. Flutter + Dart
-asosida qurilgan, Android telefonga o'rnatiladigan `.apk` sifatida tarqatiladi.
+**TEXNO BOZOR** — offline-first elektronika marketplace ilovasi. Butunlay
+noldan Flutter + Dart'da yozilgan, Android telefonga `.apk` sifatida
+o'rnatiladi.
 
-> Server, VPS, PostgreSQL, NestJS — hech biri kerak emas. Barcha asosiy
-> funksiyalar telefonning o'zida ishlaydi. Internet faqat **TEXNO AI** uchun kerak.
+> Server, VPS, PostgreSQL, NestJS, Nginx, domen — **hech biri kerak emas**.
+> Barcha ma'lumot telefonning o'zida (SQLite) saqlanadi. Internet faqat
+> TEXNO AI ning onlayn rejimi uchun (ixtiyoriy) kerak.
 
-## Imkoniyatlar
+## Bo'limlar
 
-| Bo'lim | Tavsif | Internet |
+| Bo'lim | Nima qiladi | Internet |
 |---|---|---|
-| Bosh sahifa | Bannerlar, kategoriyalar, mashhur/yangi/chegirmadagi mahsulotlar, brendlar | ❌ kerak emas |
-| Katalog | 26 kategoriya, filtr (narx/brend/reyting), 6 xil saralash | ❌ |
-| Qidiruv | Lokal qidiruv: nom, brend, model, kategoriya (masalan: "RTX 5070") | ❌ |
-| Mahsulot | Rasmlar, narx/chegirma, sharhlar, xususiyatlar, o'xshashlar | ❌ |
-| Savat | Qo'shish/o'chirish/miqdor, ilova yopilsa ham saqlanadi | ❌ |
-| Buyurtmalar | Manzil → yetkazish → to'lov (Click/Payme/Uzcard/Humo/Naqd, test rejim) → statuslar | ❌ |
-| Sevimlilar | Lokal saqlanadi | ❌ |
-| Profil | Ism, telefon, avatar, manzil, sozlamalar | ❌ |
-| Kompyuter yig'ish | PC Builder: socket/RAM/PSU/korpus/sovutgich mosligini avtomatik tekshiradi | ❌ |
-| TEXNO AI | Mahsulot tanlash bo'yicha AI yordamchi (faqat lokal bazadagi mahsulotlar bilan) | ✅ ha |
+| Bosh sahifa | Bannerlar, kategoriyalar, chegirmalar, ommabop/yangi mahsulotlar, yaqinda ko'rilganlar | ❌ |
+| Katalog | 28 kategoriya, filtr (narx/brend/reyting/ombor/chegirma), 6 xil saralash | ❌ |
+| Qidiruv | Lokal qidiruv: nom, brend, kategoriya, xususiyatlar ("RTX 4060") + tarix | ❌ |
+| Mahsulot | Rasm, narx/chegirma, ombor, xususiyatlar jadvali, sharhlar, o'xshashlar | ❌ |
+| Savat | Qo'shish/o'chirish/miqdor, swipe bilan o'chirish, bepul yetkazish hisobi | ❌ |
+| Buyurtmalar | Manzil → yetkazish → to'lov → status kuzatuvi, bekor qilish | ❌ |
+| Sevimlilar | ❤️ bilan saqlash, ilova yopilsa ham qoladi | ❌ |
+| Profil | Ism, telefon, email, manzil, statistika, sozlamalar | ❌ |
+| Kompyuter yig'ish | PC Builder: soket, xotira, korpus, PSU, sovutgich mosligini avtomatik tekshiradi | ❌ |
+| TEXNO AI | Mahsulot tanlash yordamchisi (onlayn API yoki qurilma ichidagi rejim) | ⚠️ ixtiyoriy |
 
 ## Texnologiyalar
 
-- **Flutter + Dart**, state management: **Riverpod**, navigatsiya: **GoRouter**
-- **SQLite + Drift** (lokal baza, drift codegen bilan)
-- **Dio** (TEXNO AI so'rovlari va ixtiyoriy REST rejimi uchun)
-- **flutter_secure_storage** (AI API kaliti va server tokeni xavfsiz saqlanadi)
-- **Repository pattern + RepositoryFactory** — REST API + PostgreSQL'ga o'tish
-  bitta sozlama bilan (UI kodi o'zgarmaydi)
+- **Flutter + Dart** — UI va biznes logika
+- **Riverpod** — holat boshqaruvi
+- **sqflite (SQLite)** — lokal ma'lumotlar bazasi
+- **http** — TEXNO AI va ixtiyoriy REST rejimi uchun
+- **Repository pattern + RepositoryFactory** — ma'lumot manbasini almashtirish
 
-## Tuzilma
+## Arxitektura — Repository pattern
+
+Ekranlar hech qachon bazaga yoki tarmoqqa to'g'ridan-to'g'ri murojaat
+qilmaydi. Ular faqat abstrakt interfeyslarni biladi:
+
+```
+ProductRepository · CategoryRepository · CartRepository · OrderRepository
+UserRepository · FavoritesRepository · ReviewRepository · HistoryRepository
+PcBuildRepository · ChatRepository
+```
+
+Har birining ikkita implementatsiyasi bor:
+
+| Implementatsiya | Manba | Fayl |
+|---|---|---|
+| `Local*Repository` | Telefondagi SQLite | `lib/data/repositories/local/` |
+| `Api*Repository` | REST API + PostgreSQL | `lib/data/repositories/api/` |
+
+Tanlov **bitta joyda** — `RepositoryFactory` da amalga oshadi:
+
+```dart
+// Server manzili bo'sh  -> SQLite (offline)
+RepositoryFactory(db: db);
+
+// Server manzili bor    -> REST API (+ avtomatik offline fallback)
+RepositoryFactory(db: db, config: ApiConfig(baseUrl: 'https://api.example.uz/v1'));
+```
+
+Server rejimida ham ilova offline-first qoladi: API javob bermasa, so'rov
+avtomatik lokal bazaga tushadi va foydalanuvchi buni sezmaydi. UI kodining
+birorta qatori ham o'zgarmaydi — repository implementatsiyasini keyinchalik
+almashtirish shu tarzda ta'minlangan.
+
+Serverga o'tish uchun kod o'zgartirish shart emas: ilova ichida
+**Profil → Sozlamalar → Ma'lumot manbai** bo'limiga server manzilini kiritish
+kifoya.
+
+### Kutilayotgan REST endpointlar
+
+```
+GET    /products?category=&search=&brands=&minPrice=&maxPrice=&sort=
+GET    /products/:id
+GET    /products/:id/similar
+GET    /products/brands
+GET    /products/price-range
+GET    /categories            GET /categories/counts
+GET    /cart                  POST /cart    PUT /cart/:id    DELETE /cart/:id
+GET    /orders                POST /orders  PATCH /orders/:id
+GET    /users/me              PUT /users/me
+GET    /health
+```
+
+## Loyiha tuzilmasi
 
 ```
 lib/
 ├── core/
-│   ├── theme/       # Dark premium tema
-│   ├── router/      # GoRouter + pastki menyu (5 tab)
-│   ├── constants/   # Konstantalar, kategoriya ikonlari
-│   ├── utils/       # Format, specs parser
-│   └── widgets/     # Umumiy widgetlar (ProductCard va h.k.)
+│   ├── theme/          # Dark premium tema (AppColors, AppTheme)
+│   ├── router/         # AppShell (pastki menyu) + AppRouter
+│   ├── utils/          # Format (narx, sana, telefon)
+│   ├── widgets/        # ProductCard, EmptyState, RatingStars va h.k.
+│   └── providers.dart  # Riverpod provayderlari
 ├── data/
-│   ├── database/    # Drift sxema + katalog seed
-│   ├── models/      # Enumlar, CartEntry, ProductFilter va h.k.
-│   ├── remote/      # REST qatlami: ApiClient, ApiMappers, BackendConfig
-│   ├── repositories/# Interfeyslar + Drift impl. + api/ (REST impl.) + RepositoryFactory
-│   └── services/    # AuthService, PaymentService, AiService, Connectivity
-├── features/        # home, catalog, search, product, cart, checkout,
-│                    # orders, favorites, profile, pc_builder, texno_ai, auth, splash
+│   ├── local/          # SQLite sxemasi + katalog seed (116 mahsulot)
+│   ├── models/         # Product, Cart, Order, AppUser, PcBuild...
+│   ├── remote/         # ApiClient, ApiConfig
+│   ├── repositories/   # Interfeyslar + local/ + api/ + RepositoryFactory
+│   └── services/       # AiService (onlayn + oflayn rejim)
+├── features/           # home, catalog, search, product, cart, checkout,
+│                       # orders, favorites, profile, pc_builder, texno_ai
 └── main.dart
 ```
 
-## APK build qilish
+## APK olish
 
-Eng oson yo'l — GitHub Actions (repo'dagi `.github/workflows/build-apk.yml`):
+### 1. GitHub Actions (eng oson — hech narsa o'rnatish shart emas)
+
+`texno_bozor/**` ichidagi har bir push avtomatik build qiladi:
 
 ```bash
-git push origin arena/019ff0b8-baraka-market   # workflow avtomatik ishga tushadi
-gh run watch                                    # jarayonni kuzatish
-gh run download <RUN_ID> -n texno-bozor-apk     # APK ni yuklab olish
+gh run watch                                  # jarayonni kuzatish
+gh run download <RUN_ID> -n texno-bozor-apk   # APK ni yuklab olish
 ```
 
-Lokal build (Flutter SDK + Android SDK kerak):
+Tayyor APK **Releases** bo'limiga ham chiqadi — telefondan to'g'ridan-to'g'ri
+yuklab olish mumkin.
+
+### 2. Lokal build
 
 ```bash
 cd texno_bozor
 flutter pub get
-dart run build_runner build --delete-conflicting-outputs   # Drift codegen
+flutter test              # testlar
+flutter analyze           # statik tahlil
 flutter build apk --release
 # Natija: build/app/outputs/flutter-apk/app-release.apk
 ```
 
+## Telefonga o'rnatish
+
+1. APK faylni telefonga yuklab oling
+2. Faylni oching — "Noma'lum manbalar" so'ralsa ruxsat bering
+3. O'rnatish tugagach ilova ishga tushadi va katalog avtomatik yuklanadi
+
+Ilova birinchi ochilishida SQLite bazasi yaratiladi va 28 kategoriya,
+116 mahsulot, 270+ sharh yoziladi. Shundan keyin internet umuman kerak emas.
+
 ## TEXNO AI sozlash
 
-API kaliti **hech qachon kodga yozilmaydi**. Variantlar (ustuvorlik tartibida):
+AI ikki rejimda ishlaydi:
 
-1. Ilova ichida: **Profil → Sozlamalar → AI API kaliti** (Secure Storage'da saqlanadi)
-2. `.env` fayl: `TEXNO_AI_API_KEY=...` (build vaqtida asset sifatida o'qiladi)
-3. Build flag: `flutter build apk --dart-define=TEXNO_AI_API_KEY=...`
+- **Oflayn (standart)** — qurilma ichidagi yordamchi. Byudjet ("15 mln",
+  "500 ming") va kategoriyani tushunadi, bazadan mos mahsulotlarni tanlaydi.
+  Internet kerak emas.
+- **Onlayn** — OpenAI-uyg'un API. Kalit **Profil → Sozlamalar → TEXNO AI**
+  bo'limiga kiritiladi (yoki build vaqtida
+  `--dart-define=TEXNO_AI_API_KEY=...`).
 
-OpenAI-uyg'un istalgan endpoint ishlaydi:
-
-```
-TEXNO_AI_BASE_URL=https://api.openai.com/v1
-TEXNO_AI_MODEL=gpt-4o-mini
-```
-
-AI javoblari faqat lokal bazadagi mahsulotlarga asoslanadi (grounding) —
-mavjud bo'lmagan mahsulot yoki narx o'ylab topilmaydi.
-
-## Serverga tayyor arxitektura
-
-Sukut bo'yicha barcha ma'lumot Drift (SQLite)'da — server umuman kerak emas.
-Lekin REST qatlami **allaqachon yozilgan**, shuning uchun kelajakda server
-ulansa kod qayta yozilmaydi:
-
-- `lib/data/repositories/api/` — `ProductRepository`, `CategoryRepository`,
-  `CartRepository`, `OrderRepository`, `UserRepository` interfeyslarining
-  REST implementatsiyalari (offline-first: javob lokal bazaga keshlanadi,
-  internet yo'q bo'lsa keshdan o'qiladi).
-- `RepositoryFactory` (`lib/data/repositories/repository_factory.dart`) —
-  rejimga qarab Drift yoki REST implementatsiyani qaytaradi. Ekranlar faqat
-  abstrakt interfeyslar bilan ishlaydi, ya'ni **UI kodi o'zgarmaydi**.
-- Yoqish: **Profil → Sozlamalar → Ma'lumot manbai → Server**, so'ng
-  base URL (masalan `https://api.texnobozor.uz/v1`) va token. "Tekshirish"
-  tugmasi `GET /health` ni chaqiradi. `.env` yoki `--dart-define` orqali ham:
-  `API_MODE=remote`, `API_BASE_URL=...`, `API_TOKEN=...`.
-- Sevimlilar, qidiruv tarixi, sharhlar va PC yig'ilmalar server rejimida ham
-  qurilma ichida qoladi.
-
-Kutilayotgan endpointlar:
-
-```
-GET    /health
-GET    /products            GET /products/:id     GET /products?search=
-GET    /products/brands     GET /categories
-GET    /cart                POST /cart            PATCH|DELETE /cart/:productId
-DELETE /cart                PUT  /cart
-GET    /orders              GET /orders/:id       POST /orders
-PATCH  /orders/:id/status
-GET    /users/me            POST /users           PATCH|DELETE /users/me
-```
-
-Javob `[...]` yoki `{data: [...]}` / `{items: [...]}` / `{results: [...]}`
-ko'rinishida bo'lishi mumkin — `ApiMappers` ikkalasini ham tushunadi,
-maydon nomlari `camelCase` va `snake_case` bo'lsa ham.
-
-Qolgan qadamlar: `AuthService` → OTP/SMS autentifikatsiya,
-`PaymentService` → real Click/Payme gatewaylari.
+API kalit hech qachon kodga yozilmaydi va repositoryga tushmaydi.
 
 ## Testlar
 
 ```bash
-cd texno_bozor
 flutter test
 ```
 
-- `test/pricing_test.dart` — narx, chegirma, yetkazish, formatlash
-- `test/repositories_test.dart` — katalog, savat, buyurtma, sevimlilar, profil
-- `test/compatibility_test.dart` — PC Builder moslik qoidalari
-- `test/api_mappers_test.dart` — JSON ↔ model konvertatsiyasi
-- `test/repository_factory_test.dart` — Lokal/Server rejim almashinuvi
+Qamrov: repositorylar (mahsulot, savat, buyurtma, sevimlilar, profil, tarix,
+sharh, yig'ilma, chat), PC Builder moslik qoidalari, AI byudjet/kategoriya
+tahlili, modellar va formatlash, RepositoryFactory almashtiruvi va offline
+fallback.

@@ -1,179 +1,189 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-/// TEXNO BOZOR ranglari — premium, zamonaviy "dark tech" uslub.
+/// TEXNO BOZOR dizayn tizimi — quyuq (dark) premium tema.
 class AppColors {
-  AppColors._();
+  const AppColors._();
 
-  static const Color bg = Color(0xFF0B1120);
-  static const Color surface = Color(0xFF101A2E);
-  static const Color card = Color(0xFF16223C);
-  static const Color cardLight = Color(0xFF1D2B4A);
-  static const Color border = Color(0xFF253453);
-  static const Color primary = Color(0xFF22D3EE);
-  static const Color primaryDark = Color(0xFF0E7490);
-  static const Color accent = Color(0xFF818CF8);
-  static const Color text = Color(0xFFF1F5F9);
-  static const Color textDim = Color(0xFF8FA3BF);
-  static const Color success = Color(0xFF34D399);
-  static const Color danger = Color(0xFFF87171);
-  static const Color warning = Color(0xFFFBBF24);
-  static const List<Color> gradient = [Color(0xFF06B6D4), Color(0xFF6366F1)];
-  static const List<Color> gradientWarm = [Color(0xFFF59E0B), Color(0xFFEF4444)];
+  /// Asosiy fon.
+  static const Color background = Color(0xFF0B0F14);
+
+  /// Kartochka / panel foni.
+  static const Color surface = Color(0xFF151B23);
+
+  /// Ko'tarilgan sirt (modal, input).
+  static const Color surfaceHigh = Color(0xFF1E262F);
+
+  /// Brend rangi — to'q sariq.
+  static const Color primary = Color(0xFFFF7A1A);
+  static const Color primaryDark = Color(0xFFE05F00);
+
+  /// Ikkilamchi urg'u — moviy.
+  static const Color accent = Color(0xFF2F9CF4);
+
+  static const Color success = Color(0xFF31C48D);
+  static const Color warning = Color(0xFFFFC02D);
+  static const Color danger = Color(0xFFF35B5B);
+
+  static const Color textPrimary = Color(0xFFF2F5F8);
+  static const Color textSecondary = Color(0xFF9AA7B4);
+  static const Color textMuted = Color(0xFF6B7885);
+
+  static const Color border = Color(0xFF243040);
+
+  static const LinearGradient primaryGradient = LinearGradient(
+    colors: [Color(0xFFFF9A3D), Color(0xFFFF6A00)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient aiGradient = LinearGradient(
+    colors: [Color(0xFF7B5CFF), Color(0xFF2F9CF4)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
 }
 
 class AppTheme {
-  AppTheme._();
+  const AppTheme._();
+
+  static const double radius = 16;
+  static const double radiusSmall = 10;
 
   static ThemeData dark() {
     const scheme = ColorScheme.dark(
       primary: AppColors.primary,
-      onPrimary: Color(0xFF04222B),
+      onPrimary: Colors.white,
       secondary: AppColors.accent,
-      onSecondary: Color(0xFF141534),
+      onSecondary: Colors.white,
       surface: AppColors.surface,
-      onSurface: AppColors.text,
+      onSurface: AppColors.textPrimary,
       error: AppColors.danger,
-      onError: Color(0xFF3B0A0A),
+      onError: Colors.white,
     );
 
     final base = ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
       colorScheme: scheme,
-      scaffoldBackgroundColor: AppColors.bg,
-      fontFamily: null, // Tizim shrifti (Roboto) — tez va toza
+      scaffoldBackgroundColor: AppColors.background,
+      fontFamily: 'Roboto',
     );
 
     return base.copyWith(
       appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.bg,
-        foregroundColor: AppColors.text,
+        backgroundColor: AppColors.background,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,
         titleTextStyle: TextStyle(
-          color: AppColors.text,
+          color: AppColors.textPrimary,
           fontSize: 19,
           fontWeight: FontWeight.w700,
         ),
+        iconTheme: IconThemeData(color: AppColors.textPrimary),
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.light,
+        ),
       ),
-      navigationBarTheme: NavigationBarThemeData(
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: AppColors.surface,
-        indicatorColor: AppColors.primary.withOpacity(0.18),
-        height: 66,
-        labelTextStyle: WidgetStateProperty.all(
-          const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
-        ),
-      ),
-      bottomSheetTheme: const BottomSheetThemeData(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: AppColors.card,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        hintStyle: const TextStyle(color: AppColors.textDim),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.border),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.primary, width: 1.6),
-        ),
+        selectedItemColor: AppColors.primary,
+        unselectedItemColor: AppColors.textMuted,
+        type: BottomNavigationBarType.fixed,
+        showUnselectedLabels: true,
+        elevation: 0,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
-          foregroundColor: const Color(0xFF04222B),
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: AppColors.surfaceHigh,
+          disabledForegroundColor: AppColors.textMuted,
+          minimumSize: const Size.fromHeight(52),
           elevation: 0,
-          padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
           textStyle: const TextStyle(
-              fontSize: 15.5, fontWeight: FontWeight.w700),
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(radius),
           ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.text,
+          foregroundColor: AppColors.textPrimary,
+          minimumSize: const Size.fromHeight(50),
           side: const BorderSide(color: AppColors.border),
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
-          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(radius),
           ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          foregroundColor: AppColors.primary,
-          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: AppColors.surfaceHigh,
+        hintStyle: const TextStyle(color: AppColors.textMuted),
+        labelStyle: const TextStyle(color: AppColors.textSecondary),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(radius),
+          borderSide: BorderSide.none,
         ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(radius),
+          borderSide: const BorderSide(color: AppColors.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(radius),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(radius),
+          borderSide: const BorderSide(color: AppColors.danger),
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: AppColors.surfaceHigh,
+        selectedColor: AppColors.primary,
+        side: const BorderSide(color: AppColors.border),
+        labelStyle: const TextStyle(color: AppColors.textPrimary),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusSmall),
+        ),
+      ),
+      dividerTheme: const DividerThemeData(
+        color: AppColors.border,
+        thickness: 1,
+        space: 1,
       ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: AppColors.cardLight,
-        contentTextStyle: const TextStyle(color: AppColors.text),
+        backgroundColor: AppColors.surfaceHigh,
+        contentTextStyle: const TextStyle(color: AppColors.textPrimary),
+        actionTextColor: AppColors.primary,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-      dividerColor: AppColors.border,
-      chipTheme: base.chipTheme.copyWith(
-        backgroundColor: AppColors.card,
-        selectedColor: AppColors.primary.withOpacity(0.22),
-        side: const BorderSide(color: AppColors.border),
-        labelStyle: const TextStyle(
-          color: AppColors.text,
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusSmall),
         ),
       ),
-    );
-  }
-}
-
-/// Gradient fonli container — tugma, banner va kartalarda qo'llanadi.
-class GradientBox extends StatelessWidget {
-  const GradientBox({
-    super.key,
-    required this.child,
-    this.colors = AppColors.gradient,
-    this.borderRadius = 14,
-    this.onTap,
-  });
-
-  final Widget child;
-  final List<Color> colors;
-  final double borderRadius;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(borderRadius),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(borderRadius),
-        onTap: onTap,
-        child: Ink(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: colors,
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(borderRadius),
-          ),
-          child: child,
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
+      ),
+      progressIndicatorTheme:
+          const ProgressIndicatorThemeData(color: AppColors.primary),
+      textTheme: base.textTheme.apply(
+        bodyColor: AppColors.textPrimary,
+        displayColor: AppColors.textPrimary,
       ),
     );
   }

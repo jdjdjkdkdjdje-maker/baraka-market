@@ -3,20 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
-import '../../data/models/app_models.dart';
-import '../../data/services/ai_service.dart';
-import '../../data/services/connectivity_service.dart';
+import '../../core/utils/format.dart';
+import '../../core/widgets/app_widgets.dart';
+import '../../data/models/models.dart';
 
-const List<String> _suggestions = [
-  'RTX 5070 uchun qanday protsessor mos?',
-  '10 mln so\u2018mgacha smartfon tavsiya qil',
-  'Gaming kompyuter yig\u2018ishga yordam ber',
-  'iPhone 15 va Galaxy S24 ni taqqosla',
-  'Noutbuk tanlashda nimalarga e\u2018tibor berish kerak?',
-];
-
-/// TEXNO AI — internet orqali ishlaydigan yagona modul.
-/// Internetsiz: "Internetga ulanishingiz kerak." xabari chiqadi.
+/// TEXNO AI — mahsulot tanlash bo'yicha yordamchi.
 class AiScreen extends ConsumerStatefulWidget {
   const AiScreen({super.key});
 
@@ -25,404 +16,386 @@ class AiScreen extends ConsumerStatefulWidget {
 }
 
 class _AiScreenState extends ConsumerState<AiScreen> {
-  final _controller = TextEditingController();
-  final _scrollController = ScrollController();
-  final List<AiMessage> _messages = [];
-  bool _sending = false;
+  final TextEditingController _controller = TextEditingController();
+  final ScrollController _scroll = ScrollController();
+
+  static const List<String> _prompts = [
+    'O\u2018yin uchun 15 mln so\u2018mgacha noutbuk',
+    '500 ming so\u2018mgacha quloqchin',
+    'Video montaj uchun kompyuter yig\u2018ib ber',
+    'Eng yaxshi arzon smartfon qaysi?',
+  ];
 
   @override
   void dispose() {
     _controller.dispose();
-    _scrollController.dispose();
+    _scroll.dispose();
     super.dispose();
+  }
+
+  Future<void> _send([String? preset]) async {
+    final text = (preset ?? _controller.text).trim();
+    if (text.isEmpty) return;
+    _controller.clear();
+    FocusScope.of(context).unfocus();
+
+    await ref.read(chatProvider.notifier).send(text);
+    _scrollToBottom();
   }
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOut,
-        );
-      }
+      if (!_scroll.hasClients) return;
+      _scroll.animateTo(
+        _scroll.position.maxScrollExtent + 120,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
     });
-  }
-
-  Future<void> _send(String text) async {
-    final message = text.trim();
-    if (message.isEmpty || _sending) return;
-
-    _controller.clear();
-    setState(() {
-      _messages.add(AiMessage(role: 'user', text: message));
-      _sending = true;
-    });
-    _scrollToBottom();
-
-    try {
-      // 1) Internet tekshiruvi.
-      final online = await ConnectivityService().isOnline;
-      if (!online) {
-        throw const AiNetworkException('Internetga ulanishingiz kerak.');
-      }
-
-      // 2) AI faqat lokal bazadagi mahsulotlarni ko'radi.
-      final matched =
-          await ref.read(productRepositoryProvider).search(message);
-      final contextProducts = matched.isNotEmpty
-          ? matched.take(6).toList()
-          : (await ref.read(productRepositoryProvider).getAll())
-              .take(6)
-              .toList();
-      final productContext =
-          ref.read(aiServiceProvider).buildProductContext(contextProducts);
-
-      // 3) Tarix (oxirgi 8 xabar).
-      final history = _messages
-          .where((m) => m != _messages.last)
-          .toList()
-          .reversed
-          .take(8)
-          .toList()
-          .reversed
-          .map((m) => {'role': m.role, 'content': m.text})
-          .toList();
-
-      final answer = await ref.read(aiServiceProvider).ask(
-            userMessage: message,
-            productContext: productContext,
-            history: history,
-          );
-
-      if (!mounted) return;
-      setState(() => _messages.add(AiMessage(role: 'assistant', text: answer)));
-    } on AiNoKeyException catch (e) {
-      if (!mounted) return;
-      setState(() => _messages.add(AiMessage(role: 'assistant', text: '$e')));
-    } on AiNetworkException catch (e) {
-      if (!mounted) return;
-      setState(() => _messages.add(AiMessage(role: 'assistant', text: '$e')));
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _messages.add(AiMessage(
-          role: 'assistant',
-          text: 'Kutilmagan xatolik yuz berdi. Qayta urinib ko\u2018ring.')));
-    } finally {
-      if (mounted) setState(() => _sending = false);
-      _scrollToBottom();
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final online = ref.watch(connectivityProvider).valueOrNull ?? true;
+    final messages = ref.watch(chatProvider).value ?? const <ChatMessage>[];
+    final thinking = ref.watch(chatProvider.notifier).isThinking;
+    final online = ref.watch(aiConfigProvider).isEnabled;
 
     return Scaffold(
       appBar: AppBar(
         title: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(6),
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: AppColors.gradient),
-                borderRadius: BorderRadius.circular(10),
+                gradient: AppColors.aiGradient,
+                borderRadius: BorderRadius.circular(9),
               ),
-              child: const Icon(Icons.auto_awesome,
-                  size: 16, color: Colors.white),
+              child: const Icon(Icons.auto_awesome_rounded,
+                  size: 18, color: Colors.white),
             ),
             const SizedBox(width: 10),
-            const Text('TEXNO AI'),
-          ],
-        ),
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 12),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: online
-                  ? AppColors.success.withOpacity(0.14)
-                  : AppColors.danger.withOpacity(0.14),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  online ? Icons.wifi_rounded : Icons.wifi_off_rounded,
-                  size: 14,
-                  color: online ? AppColors.success : AppColors.danger,
-                ),
-                const SizedBox(width: 4),
+                const Text('TEXNO AI', style: TextStyle(fontSize: 17)),
                 Text(
-                  online ? 'Onlayn' : 'Oflayn',
+                  online ? 'Onlayn rejim' : 'Oflayn rejim',
                   style: TextStyle(
                     fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: online ? AppColors.success : AppColors.danger,
+                    fontWeight: FontWeight.w400,
+                    color: online ? AppColors.success : AppColors.textMuted,
                   ),
                 ),
               ],
             ),
+          ],
+        ),
+        actions: [
+          if (messages.isNotEmpty)
+            IconButton(
+              tooltip: 'Suhbatni tozalash',
+              onPressed: () => ref.read(chatProvider.notifier).clear(),
+              icon: const Icon(Icons.delete_outline_rounded),
+            ),
+          IconButton(
+            tooltip: 'AI sozlamalari',
+            onPressed: () => Navigator.of(context).pushNamed('/settings'),
+            icon: const Icon(Icons.tune_rounded),
           ),
         ],
       ),
       body: Column(
         children: [
-          if (!online)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              color: AppColors.danger.withOpacity(0.12),
-              child: const Row(
-                children: [
-                  Icon(Icons.cloud_off_rounded,
-                      size: 18, color: AppColors.danger),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Internetga ulanishingiz kerak. TEXNO AI faqat internet orqali ishlaydi — qolgan funksiyalar internetsiz ham davom etadi.',
-                      style: TextStyle(fontSize: 12, color: AppColors.danger),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           Expanded(
-            child: _messages.isEmpty
-                ? _EmptyChat(onSuggestion: _send)
+            child: messages.isEmpty
+                ? _welcome()
                 : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                    itemCount: _messages.length,
-                    itemBuilder: (context, i) =>
-                        _Bubble(message: _messages[i]),
+                    controller: _scroll,
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                    itemCount: messages.length + (thinking ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      if (index >= messages.length) return _typing();
+                      return _bubble(messages[index]);
+                    },
                   ),
           ),
-          if (_sending)
-            const Padding(
-              padding: EdgeInsets.only(left: 20, bottom: 6),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: _TypingIndicator(),
-              ),
-            ),
-
-          // Tavsiyalar
-          if (_messages.isEmpty)
-            SizedBox(
-              height: 46,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: _suggestions.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (context, i) => ActionChip(
-                  label: Text(_suggestions[i]),
-                  onPressed: () => _send(_suggestions[i]),
-                ),
-              ),
-            ),
-          const SizedBox(height: 8),
-
-          // Kiritish maydoni
-          Container(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 14),
-            decoration: const BoxDecoration(
-              color: AppColors.surface,
-              border: Border(top: BorderSide(color: AppColors.border)),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    minLines: 1,
-                    maxLines: 3,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: _send,
-                    decoration: const InputDecoration(
-                      hintText: 'Savolingizni yozing...',
-                      isDense: true,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                GradientBox(
-                  borderRadius: 12,
-                  onTap: _sending ? null : () => _send(_controller.text),
-                  child: const Padding(
-                    padding: EdgeInsets.all(12),
-                    child: Icon(Icons.send_rounded,
-                        size: 18, color: Colors.white),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _composer(thinking),
         ],
       ),
     );
   }
-}
 
-class _EmptyChat extends StatelessWidget {
-  const _EmptyChat({required this.onSuggestion});
-
-  final ValueChanged<String> onSuggestion;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: AppColors.gradient
-                      .map((c) => c.withOpacity(0.15))
-                      .toList(),
-                ),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.smart_toy_outlined,
-                  size: 46, color: AppColors.primary),
+  Widget _welcome() {
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        const SizedBox(height: 20),
+        Center(
+          child: Container(
+            width: 84,
+            height: 84,
+            decoration: BoxDecoration(
+              gradient: AppColors.aiGradient,
+              borderRadius: BorderRadius.circular(24),
             ),
-            const SizedBox(height: 18),
-            const Text(
-              'TEXNO AI ga xush kelibsiz!',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Texnika tanlash, taqqoslash, xususiyatlarni tushuntirish va kompyuter yig\u2018ish bo\u2018yicha yordam beraman. Javoblarim faqat ilovadagi real mahsulotlarga asoslanadi.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  fontSize: 13, color: AppColors.textDim, height: 1.5),
-            ),
-            const SizedBox(height: 20),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              alignment: WrapAlignment.center,
-              children: _suggestions
-                  .take(3)
-                  .map((s) => ActionChip(
-                        label: Text(s),
-                        onPressed: () => onSuggestion(s),
-                      ))
-                  .toList(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Bubble extends StatelessWidget {
-  const _Bubble({required this.message});
-
-  final AiMessage message;
-
-  @override
-  Widget build(BuildContext context) {
-    final isUser = message.isUser;
-    return Align(
-      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.82,
-        ),
-        decoration: BoxDecoration(
-          gradient: isUser
-              ? const LinearGradient(colors: AppColors.gradient)
-              : null,
-          color: isUser ? null : AppColors.card,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(isUser ? 16 : 4),
-            bottomRight: Radius.circular(isUser ? 4 : 16),
+            child: const Icon(Icons.auto_awesome_rounded,
+                size: 40, color: Colors.white),
           ),
-          border: isUser ? null : Border.all(color: AppColors.border),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (!isUser) ...[
-              const Icon(Icons.smart_toy_outlined,
-                  size: 16, color: AppColors.primary),
-              const SizedBox(width: 8),
-            ],
-            Flexible(
-              child: Text(
-                message.text,
-                style: TextStyle(
-                  fontSize: 13.5,
-                  height: 1.45,
-                  color: isUser ? Colors.white : AppColors.text,
+        const SizedBox(height: 20),
+        const Text(
+          'Salom! Men TEXNO AI',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 10),
+        const Text(
+          'Byudjetingiz va maqsadingizni yozing — do\u2018kondagi '
+          'mahsulotlardan eng mosini tanlab beraman.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.5,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 28),
+        const Text(
+          'Namuna savollar',
+          style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+        ),
+        const SizedBox(height: 10),
+        for (final prompt in _prompts)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Material(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(12),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => _send(prompt),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.chat_bubble_outline_rounded,
+                          size: 16, color: AppColors.accent),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          prompt,
+                          style: const TextStyle(fontSize: 13.5),
+                        ),
+                      ),
+                      const Icon(Icons.north_east_rounded,
+                          size: 14, color: AppColors.textMuted),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+      ],
+    );
+  }
+
+  Widget _bubble(ChatMessage message) {
+    final isUser = message.isUser;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment:
+            isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        children: [
+          Container(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.82,
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            decoration: BoxDecoration(
+              color: isUser ? AppColors.primary : AppColors.surface,
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(16),
+                topRight: const Radius.circular(16),
+                bottomLeft: Radius.circular(isUser ? 16 : 4),
+                bottomRight: Radius.circular(isUser ? 4 : 16),
+              ),
+            ),
+            child: Text(
+              message.text,
+              style: TextStyle(
+                fontSize: 14,
+                height: 1.45,
+                color: isUser ? Colors.white : AppColors.textPrimary,
+              ),
+            ),
+          ),
+          if (message.productIds.isNotEmpty) _products(message.productIds),
+        ],
       ),
     );
   }
-}
 
-class _TypingIndicator extends StatefulWidget {
-  const _TypingIndicator();
-
-  @override
-  State<_TypingIndicator> createState() => _TypingIndicatorState();
-}
-
-class _TypingIndicatorState extends State<_TypingIndicator>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 800),
-  )..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+  Widget _products(List<String> ids) {
+    return FutureBuilder<List<Product>>(
+      future: ref.read(productRepositoryProvider).getByIds(ids),
+      builder: (context, snapshot) {
+        final products = snapshot.data ?? const <Product>[];
+        if (products.isEmpty) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Column(
+            children: [
+              for (final product in products)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Material(
+                    color: AppColors.surfaceHigh,
+                    borderRadius: BorderRadius.circular(12),
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      onTap: () => Navigator.of(context)
+                          .pushNamed('/product', arguments: product.id),
+                      child: Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 54,
+                              height: 54,
+                              child: AppImage(source: product.image, radius: 8),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    product.name,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      height: 1.2,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        Format.price(product.price),
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppColors.primary,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      RatingStars(
+                                          rating: product.rating, size: 11),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () async {
+                                await ref
+                                    .read(cartProvider.notifier)
+                                    .add(product.id);
+                                if (context.mounted) {
+                                  showAppSnack(
+                                      context, 'Savatga qo\u2018shildi');
+                                }
+                              },
+                              icon: const Icon(Icons.add_shopping_cart_rounded,
+                                  size: 19),
+                              color: AppColors.primary,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: Tween<double>(begin: 0.4, end: 1).animate(_controller),
+  Widget _typing() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         decoration: BoxDecoration(
-          color: AppColors.card,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
         ),
         child: const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             SizedBox(
-              width: 13,
-              height: 13,
-              child: CircularProgressIndicator(
-                  strokeWidth: 2, color: AppColors.primary),
+              width: 15,
+              height: 15,
+              child: CircularProgressIndicator(strokeWidth: 2),
             ),
             SizedBox(width: 10),
             Text(
-              'TEXNO AI o\u2018ylamoqda...',
-              style: TextStyle(fontSize: 12, color: AppColors.textDim),
+              'O\u2018ylayapman...',
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _composer(bool thinking) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        border: Border(top: BorderSide(color: AppColors.border)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _controller,
+                minLines: 1,
+                maxLines: 4,
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) => _send(),
+                decoration: const InputDecoration(
+                  hintText: 'Savolingizni yozing...',
+                  isDense: true,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Material(
+              color: thinking ? AppColors.surfaceHigh : AppColors.primary,
+              shape: const CircleBorder(),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: thinking ? null : () => _send(),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Icon(
+                    Icons.send_rounded,
+                    size: 20,
+                    color: thinking ? AppColors.textMuted : Colors.white,
+                  ),
+                ),
+              ),
             ),
           ],
         ),

@@ -4,295 +4,61 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/format.dart';
-import '../../core/widgets/ui_widgets.dart';
-import '../../data/database/app_database.dart';
-import '../../data/models/enums.dart';
+import '../../core/widgets/app_widgets.dart';
+import '../../data/models/models.dart';
 import 'orders_screen.dart';
 
+/// BUYURTMA tafsiloti va holat kuzatuvi.
 class OrderDetailScreen extends ConsumerWidget {
   const OrderDetailScreen({super.key, required this.orderId});
 
   final String orderId;
 
+  static const List<OrderStatus> _flow = [
+    OrderStatus.pending,
+    OrderStatus.confirmed,
+    OrderStatus.packing,
+    OrderStatus.shipping,
+    OrderStatus.delivered,
+  ];
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final orderStream =
-        ref.watch(orderRepositoryProvider).watchById(orderId);
-    final itemsStream =
-        ref.watch(orderRepositoryProvider).watchItems(orderId);
+    final orderAsync = ref.watch(orderByIdProvider(orderId));
 
     return Scaffold(
-      appBar: AppBar(title: Text('Buyurtma $orderId')),
-      body: StreamBuilder<Order?>(
-        stream: orderStream,
-        builder: (context, orderSnap) {
-          final order = orderSnap.data;
-          if (order == null) return const LoadingView();
-
-          final status = OrderStatus.fromName(order.status);
-          final steps = status == OrderStatus.cancelled
-              ? [OrderStatus.cancelled]
-              : [
-                  OrderStatus.fresh,
-                  OrderStatus.preparing,
-                  OrderStatus.delivering,
-                  OrderStatus.delivered,
-                ];
-          final currentIndex =
-              status == OrderStatus.cancelled ? 0 : steps.indexOf(status);
-
+      appBar: AppBar(title: Text(orderAsync.value?.number ?? 'Buyurtma')),
+      body: orderAsync.when(
+        loading: () => const LoadingState(),
+        error: (e, _) => ErrorState(message: '$e'),
+        data: (order) {
+          if (order == null) {
+            return const EmptyState(
+              icon: Icons.receipt_long_outlined,
+              title: 'Buyurtma topilmadi',
+            );
+          }
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
             children: [
-              // Status timeline
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.card,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Text(
-                          'Holat: ',
-                          style: TextStyle(
-                              fontSize: 15, fontWeight: FontWeight.w700),
-                        ),
-                        StatusChip(
-                            label: status.label, color: statusColor(status)),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    if (status == OrderStatus.cancelled)
-                      const Text(
-                        'Buyurtma bekor qilingan.',
-                        style: TextStyle(
-                            color: AppColors.danger, fontSize: 13),
-                      )
-                    else
-                      Row(
-                        children: [
-                          for (var i = 0; i < steps.length; i++) ...[
-                            if (i > 0)
-                              Expanded(
-                                child: Container(
-                                  height: 3,
-                                  color: i <= currentIndex
-                                      ? AppColors.primary
-                                      : AppColors.border,
-                                ),
-                              ),
-                            Column(
-                              children: [
-                                Container(
-                                  width: 26,
-                                  height: 26,
-                                  decoration: BoxDecoration(
-                                    color: i <= currentIndex
-                                        ? AppColors.primary
-                                        : AppColors.cardLight,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: i <= currentIndex
-                                          ? AppColors.primary
-                                          : AppColors.border,
-                                    ),
-                                  ),
-                                  child: i < currentIndex
-                                      ? const Icon(Icons.check_rounded,
-                                          size: 15,
-                                          color: Color(0xFF04222B))
-                                      : i == currentIndex
-                                          ? const Icon(Icons.circle,
-                                              size: 9,
-                                              color: Color(0xFF04222B))
-                                          : null,
-                                ),
-                                const SizedBox(height: 5),
-                                Text(
-                                  steps[i].label.split(' ').first,
-                                  style: TextStyle(
-                                    fontSize: 9.5,
-                                    color: i <= currentIndex
-                                        ? AppColors.text
-                                        : AppColors.textDim,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ],
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-
-              // Mahsulotlar
-              StreamBuilder<List<OrderItem>>(
-                stream: itemsStream,
-                builder: (context, itemsSnap) {
-                  final items = itemsSnap.data ?? [];
-                  return Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: AppColors.card,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Mahsulotlar',
-                          style: TextStyle(
-                              fontSize: 15, fontWeight: FontWeight.w700),
-                        ),
-                        const SizedBox(height: 10),
-                        for (final item in items)
-                          Padding(
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 6),
-                            child: Row(
-                              children: [
-                                Text(item.emoji,
-                                    style: const TextStyle(fontSize: 24)),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        item.name,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                            fontSize: 12.5,
-                                            fontWeight: FontWeight.w600),
-                                      ),
-                                      Text(
-                                        '${item.qty} x ${formatSum(item.price)}',
-                                        style: const TextStyle(
-                                            fontSize: 11.5,
-                                            color: AppColors.textDim),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Text(
-                                  formatSum(item.price * item.qty),
-                                  style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w700),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 14),
-
-              // Summalar
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColors.card,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Column(
-                  children: [
-                    _row('Mahsulotlar', formatSum(order.subtotal)),
-                    const SizedBox(height: 6),
-                    _row(
-                      'Chegirma',
-                      order.discount > 0
-                          ? '- ${formatSum(order.discount)}'
-                          : '0 so\u2018m',
-                    ),
-                    const SizedBox(height: 6),
-                    _row(
-                      'Yetkazib berish',
-                      order.deliveryFee == 0
-                          ? 'Bepul'
-                          : formatSum(order.deliveryFee),
-                    ),
-                    const Divider(height: 18),
-                    Row(
-                      children: [
-                        const Text('Jami',
-                            style: TextStyle(
-                                fontSize: 15, fontWeight: FontWeight.w800)),
-                        const Spacer(),
-                        PriceText(order.total, fontSize: 17),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-
-              // Ma'lumotlar
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColors.card,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _infoRow(Icons.person_outline_rounded,
-                        order.customerName.isEmpty ? '-' : order.customerName),
-                    const SizedBox(height: 8),
-                    _infoRow(Icons.phone_outlined,
-                        order.customerPhone.isEmpty ? '-' : order.customerPhone),
-                    const SizedBox(height: 8),
-                    _infoRow(Icons.location_on_outlined,
-                        order.address.isEmpty ? '-' : order.address),
-                    const SizedBox(height: 8),
-                    _infoRow(
-                      Icons.payments_outlined,
-                      PaymentMethod.fromName(order.paymentMethod).label,
-                    ),
-                    const SizedBox(height: 8),
-                    _infoRow(
-                      Icons.local_shipping_outlined,
-                      DeliveryMethod.fromName(order.deliveryMethod).label,
-                    ),
-                    const SizedBox(height: 8),
-                    _infoRow(
-                      Icons.schedule_rounded,
-                      formatDateTime(
-                          DateTime.fromMillisecondsSinceEpoch(order.createdAt)),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-
-              // Amallar
-              if (status == OrderStatus.fresh ||
-                  status == OrderStatus.preparing)
+              _statusCard(order),
+              const SizedBox(height: 16),
+              _section('Mahsulotlar', _items(context, order)),
+              const SizedBox(height: 16),
+              _section('Yetkazib berish', _delivery(order)),
+              const SizedBox(height: 16),
+              _section('To\u2018lov', _payment(order)),
+              const SizedBox(height: 20),
+              if (!order.status.isFinal)
                 OutlinedButton.icon(
-                  onPressed: () => _confirmCancel(context, ref),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.danger,
-                    side: BorderSide(color: AppColors.danger.withOpacity(0.5)),
+                  onPressed: () => _cancel(context, ref, order),
+                  icon: const Icon(Icons.close_rounded,
+                      size: 18, color: AppColors.danger),
+                  label: const Text(
+                    'Buyurtmani bekor qilish',
+                    style: TextStyle(color: AppColors.danger),
                   ),
-                  icon: const Icon(Icons.cancel_outlined),
-                  label: const Text('Buyurtmani bekor qilish'),
                 ),
-              const SizedBox(height: 24),
             ],
           );
         },
@@ -300,56 +66,286 @@ class OrderDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _row(String label, String value) {
-    return Row(
-      children: [
-        Text(label,
-            style: const TextStyle(fontSize: 13, color: AppColors.textDim)),
-        const Spacer(),
-        Text(value,
-            style:
-                const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-      ],
+  Widget _statusCard(Order order) {
+    final color = OrdersScreen.statusColor(order.status);
+    final currentIndex = _flow.indexOf(order.status);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppTheme.radius),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(OrdersScreen.statusIcon(order.status), color: color),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      order.status.label,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: color,
+                      ),
+                    ),
+                    Text(
+                      Format.dateTime(order.createdAt),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (order.status != OrderStatus.cancelled) ...[
+            const SizedBox(height: 18),
+            for (var i = 0; i < _flow.length; i++)
+              _step(
+                label: _flow[i].label,
+                done: i <= currentIndex,
+                isLast: i == _flow.length - 1,
+                color: color,
+              ),
+          ],
+        ],
+      ),
     );
   }
 
-  Widget _infoRow(IconData icon, String value) {
-    return Row(
+  Widget _step({
+    required String label,
+    required bool done,
+    required bool isLast,
+    required Color color,
+  }) {
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Column(
+            children: [
+              Container(
+                width: 18,
+                height: 18,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: done ? color : AppColors.surfaceHigh,
+                  border: Border.all(
+                    color: done ? color : AppColors.border,
+                    width: 2,
+                  ),
+                ),
+                child: done
+                    ? const Icon(Icons.check_rounded,
+                        size: 11, color: Colors.white)
+                    : null,
+              ),
+              if (!isLast)
+                Expanded(
+                  child: Container(
+                    width: 2,
+                    color: done ? color : AppColors.border,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(width: 12),
+          Padding(
+            padding: EdgeInsets.only(bottom: isLast ? 0 : 18),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: done ? FontWeight.w600 : FontWeight.w400,
+                color: done ? AppColors.textPrimary : AppColors.textMuted,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _section(String title, Widget child) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 17, color: AppColors.textDim),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(value, style: const TextStyle(fontSize: 13)),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10, left: 2),
+          child: Text(
+            title,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppTheme.radius),
+          ),
+          child: child,
         ),
       ],
     );
   }
 
-  void _confirmCancel(BuildContext context, WidgetRef ref) {
-    showDialog<void>(
+  Widget _items(BuildContext context, Order order) {
+    return Column(
+      children: [
+        for (final item in order.items)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: InkWell(
+              onTap: () => Navigator.of(context)
+                  .pushNamed('/product', arguments: item.productId),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 52,
+                    height: 52,
+                    child: AppImage(source: item.image, radius: 8),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          '${item.quantity} × ${Format.price(item.price)}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    Format.price(item.total),
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        const Divider(height: 12),
+        const SizedBox(height: 10),
+        _row('Mahsulotlar', Format.price(order.subtotal)),
+        const SizedBox(height: 6),
+        _row(
+          'Yetkazish',
+          order.deliveryFee == 0 ? 'Bepul' : Format.price(order.deliveryFee),
+        ),
+        const SizedBox(height: 10),
+        _row('Jami', Format.price(order.total), bold: true),
+      ],
+    );
+  }
+
+  Widget _delivery(Order order) {
+    return Column(
+      children: [
+        _row('Usul', order.deliveryType.label),
+        const SizedBox(height: 8),
+        _row('Qabul qiluvchi', order.customerName),
+        const SizedBox(height: 8),
+        _row('Telefon', Format.phone(order.phone)),
+        const SizedBox(height: 8),
+        _row('Manzil', order.address, multiline: true),
+        if (order.comment.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _row('Izoh', order.comment, multiline: true),
+        ],
+      ],
+    );
+  }
+
+  Widget _payment(Order order) => _row('Usul', order.paymentMethod.label);
+
+  Widget _row(
+    String label,
+    String value, {
+    bool bold = false,
+    bool multiline = false,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 110,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: bold ? 15 : 13,
+              color: bold ? AppColors.textPrimary : AppColors.textMuted,
+              fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            maxLines: multiline ? 3 : 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: bold ? 17 : 13.5,
+              fontWeight: bold ? FontWeight.w900 : FontWeight.w600,
+              color: bold ? AppColors.primary : AppColors.textPrimary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _cancel(
+      BuildContext context, WidgetRef ref, Order order) async {
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Bekor qilinsinmi?'),
-        content: const Text(
-            'Buyurtmani bekor qilishni tasdiqlaysizmi? Bu amalni ortga qaytarib bo\u2018lmaydi.'),
+      builder: (context) => AlertDialog(
+        title: const Text('Buyurtmani bekor qilish'),
+        content: Text('${order.number} raqamli buyurtma bekor qilinsinmi?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
+            onPressed: () => Navigator.of(context).pop(false),
             child: const Text('Yo\u2018q'),
           ),
           TextButton(
-            onPressed: () {
-              ref
-                  .read(orderRepositoryProvider)
-                  .updateStatus(orderId, OrderStatus.cancelled);
-              Navigator.pop(dialogContext);
-            },
-            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
-            child: const Text('Ha, bekor qilish'),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Ha, bekor qilish',
+                style: TextStyle(color: AppColors.danger)),
           ),
         ],
       ),
     );
+    if (confirmed != true) return;
+
+    await ref.read(ordersProvider.notifier).cancel(order.id);
+    ref.invalidate(orderByIdProvider(order.id));
+    ref.invalidate(allProductsProvider);
+    if (context.mounted) showAppSnack(context, 'Buyurtma bekor qilindi');
   }
 }

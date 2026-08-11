@@ -1,77 +1,71 @@
-import '../database/app_database.dart';
+import '../local/app_database.dart';
 import '../remote/api_client.dart';
-import '../remote/backend_config.dart';
-import 'api/api_cart_repository.dart';
-import 'api/api_category_repository.dart';
-import 'api/api_order_repository.dart';
-import 'api/api_product_repository.dart';
-import 'api/api_user_repository.dart';
-import 'cart_repository.dart';
-import 'category_repository.dart';
-import 'favorites_repository.dart';
-import 'history_repository.dart';
-import 'order_repository.dart';
-import 'pc_build_repository.dart';
-import 'product_repository.dart';
-import 'review_repository.dart';
-import 'user_repository.dart';
+import 'api/api_repositories.dart';
+import 'local/local_cart_repository.dart';
+import 'local/local_category_repository.dart';
+import 'local/local_misc_repositories.dart';
+import 'local/local_order_repository.dart';
+import 'local/local_product_repository.dart';
+import 'repositories.dart';
 
-/// Repository fabrikasi — implementatsiyani bitta joyda tanlaydi.
+/// REPOSITORY FABRIKASI — implementatsiya tanlanadigan YAGONA joy.
 ///
-/// `BackendMode.local`  -> Drift (SQLite, offline).
-/// `BackendMode.remote` -> REST API (+ lokal kesh).
+/// Ilova sukut bo'yicha `ApiConfig(baseUrl: '')` bilan ishlaydi, ya'ni
+/// hamma narsa telefon ichidagi SQLite'dan o'qiladi: server, VPS, PostgreSQL
+/// kerak emas.
 ///
-/// Ekranlar faqat abstrakt interfeyslar bilan ishlagani uchun rejimni
-/// almashtirish qolgan kodga umuman ta'sir qilmaydi.
+/// Kelajakda REST API + PostgreSQL tayyor bo'lsa — Profil > Sozlamalar'da
+/// server manzili kiritiladi, fabrika `Api*Repository` larni qaytara
+/// boshlaydi va ekranlarning birorta qatori ham o'zgarmaydi.
 class RepositoryFactory {
-  RepositoryFactory({required this.db, required this.config})
-      : api = config.isRemote ? ApiClient(config) : null;
+  RepositoryFactory({required this.db, this.config = const ApiConfig()})
+      : api = config.isEnabled ? ApiClient(config) : null {
+    final localProducts = LocalProductRepository(db);
+    final localCategories = LocalCategoryRepository(db);
+    final localCart = LocalCartRepository(db, localProducts);
+    final localOrders = LocalOrderRepository(db, localCart, localProducts);
+    final localUsers = LocalUserRepository(db);
+
+    final client = api;
+    products = client == null
+        ? localProducts
+        : ApiProductRepository(client, localProducts);
+    categories = client == null
+        ? localCategories
+        : ApiCategoryRepository(client, localCategories);
+    cart = client == null
+        ? localCart
+        : ApiCartRepository(client, localCart, products);
+    orders =
+        client == null ? localOrders : ApiOrderRepository(client, localOrders);
+    users = client == null ? localUsers : ApiUserRepository(client, localUsers);
+
+    // Quyidagilar tabiatan qurilma ichidagi ma'lumot (sevimlilar, tarix,
+    // yig'ilmalar, AI suhbati) — server rejimida ham lokal qoladi.
+    favorites = LocalFavoritesRepository(db);
+    reviews = LocalReviewRepository(db);
+    history = LocalHistoryRepository(db);
+    pcBuilds = LocalPcBuildRepository(db);
+    chat = LocalChatRepository(db);
+  }
 
   final AppDatabase db;
-  final BackendConfig config;
+  final ApiConfig config;
   final ApiClient? api;
 
+  /// Ilova hozir server rejimidami?
   bool get isRemote => api != null;
 
-  ProductRepository products() {
-    final client = api;
-    return client == null
-        ? DriftProductRepository(db)
-        : ApiProductRepository(client, db);
-  }
+  late final ProductRepository products;
+  late final CategoryRepository categories;
+  late final CartRepository cart;
+  late final OrderRepository orders;
+  late final UserRepository users;
+  late final FavoritesRepository favorites;
+  late final ReviewRepository reviews;
+  late final HistoryRepository history;
+  late final PcBuildRepository pcBuilds;
+  late final ChatRepository chat;
 
-  CategoryRepository categories() {
-    final client = api;
-    return client == null
-        ? DriftCategoryRepository(db)
-        : ApiCategoryRepository(client, db);
-  }
-
-  CartRepository cart() {
-    final client = api;
-    return client == null
-        ? DriftCartRepository(db)
-        : ApiCartRepository(client, db);
-  }
-
-  OrderRepository orders(CartRepository cartRepository) {
-    final client = api;
-    return client == null
-        ? DriftOrderRepository(db, cartRepository)
-        : ApiOrderRepository(client, db, cartRepository);
-  }
-
-  UserRepository users() {
-    final client = api;
-    return client == null
-        ? DriftUserRepository(db)
-        : ApiUserRepository(client, db);
-  }
-
-  // Quyidagilar faqat qurilma ichida ma'noga ega (sevimlilar, tarix,
-  // sharhlar keshi, PC yig'ilmalar) — hozircha lokal implementatsiya.
-  FavoritesRepository favorites() => DriftFavoritesRepository(db);
-  ReviewRepository reviews() => DriftReviewRepository(db);
-  HistoryRepository history() => DriftHistoryRepository(db);
-  PcBuildRepository pcBuilds() => DriftPcBuildRepository(db);
+  void dispose() => api?.close();
 }

@@ -5,204 +5,211 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/widgets/ui_widgets.dart';
-import '../../data/database/app_database.dart';
+import '../../core/widgets/app_widgets.dart';
+import '../../core/widgets/product_card.dart';
 
-/// Lokal qidiruv: internet talab qilmaydi.
+/// QIDIRUV — lokal, internetsiz ishlaydi.
 class SearchScreen extends ConsumerStatefulWidget {
-  const SearchScreen({super.key, this.initialQuery});
-
-  final String? initialQuery;
+  const SearchScreen({super.key});
 
   @override
   ConsumerState<SearchScreen> createState() => _SearchScreenState();
 }
 
 class _SearchScreenState extends ConsumerState<SearchScreen> {
-  final _controller = TextEditingController();
+  final TextEditingController _controller = TextEditingController();
+  final FocusNode _focus = FocusNode();
   Timer? _debounce;
-  List<Product>? _results;
-  bool _searching = false;
+
+  static const List<String> _popularQueries = [
+    'RTX 4060',
+    'iPhone 15',
+    'noutbuk',
+    'quloqchin',
+    'SSD 1TB',
+    'gaming klaviatura',
+    'monitor 144Hz',
+    'powerbank',
+  ];
 
   @override
   void initState() {
     super.initState();
-    if (widget.initialQuery != null && widget.initialQuery!.isNotEmpty) {
-      _controller.text = widget.initialQuery!;
-      _search(widget.initialQuery!);
-    }
+    _controller.text = ref.read(searchQueryProvider);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _focus.requestFocus());
   }
 
   @override
   void dispose() {
-    _controller.dispose();
     _debounce?.cancel();
+    _controller.dispose();
+    _focus.dispose();
     super.dispose();
   }
 
   void _onChanged(String value) {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 300), () => _search(value));
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      ref.read(searchQueryProvider.notifier).state = value;
+    });
   }
 
-  Future<void> _search(String query) async {
-    final q = query.trim();
-    if (q.isEmpty) {
-      if (mounted) setState(() => _results = null);
-      return;
-    }
-    if (mounted) setState(() => _searching = true);
-    final results = await ref.read(productRepositoryProvider).search(q);
-    if (!mounted) return;
-    setState(() {
-      _results = results;
-      _searching = false;
-    });
-    await ref.read(historyRepositoryProvider).addSearch(q);
+  Future<void> _submit(String value) async {
+    final query = value.trim();
+    if (query.isEmpty) return;
+    _controller.text = query;
+    ref.read(searchQueryProvider.notifier).state = query;
+    await ref.read(historyRepositoryProvider).addSearch(query);
+    ref.invalidate(recentSearchesProvider);
   }
 
   @override
   Widget build(BuildContext context) {
-    final history = ref.watch(searchHistoryProvider).valueOrNull ?? [];
-    final recentlyViewed =
-        ref.watch(recentlyViewedProvider).valueOrNull ?? [];
+    final query = ref.watch(searchQueryProvider);
+    final results = ref.watch(searchResultsProvider);
+    final recent = ref.watch(recentSearchesProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: TextField(
-          controller: _controller,
-          autofocus: true,
-          onChanged: _onChanged,
-          onSubmitted: (v) => _search(v),
-          decoration: InputDecoration(
-            hintText: 'Mahsulot, brend, model...',
-            isDense: true,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-            suffixIcon: _controller.text.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.close_rounded, size: 18),
-                    onPressed: () {
-                      _controller.clear();
-                      setState(() => _results = null);
-                    },
-                  )
-                : null,
+        titleSpacing: 0,
+        title: Padding(
+          padding: const EdgeInsets.only(right: 12),
+          child: TextField(
+            controller: _controller,
+            focusNode: _focus,
+            textInputAction: TextInputAction.search,
+            onChanged: _onChanged,
+            onSubmitted: _submit,
+            decoration: InputDecoration(
+              hintText: 'Mahsulot, brend yoki model...',
+              prefixIcon: const Icon(Icons.search_rounded, size: 20),
+              isDense: true,
+              suffixIcon: query.isEmpty
+                  ? null
+                  : IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 18),
+                      onPressed: () {
+                        _controller.clear();
+                        ref.read(searchQueryProvider.notifier).state = '';
+                      },
+                    ),
+            ),
           ),
         ),
-        actions: [
-          IconButton(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.close_rounded),
-          ),
-        ],
       ),
-      body: _results == null
-          ? ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                if (history.isNotEmpty) ...[
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          'Qidiruv tarixi',
-                          style: TextStyle(
-                              fontSize: 15, fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () => ref
-                            .read(historyRepositoryProvider)
-                            .clearSearchHistory(),
-                        child: const Text('Tozalash'),
-                      ),
-                    ],
-                  ),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: history
-                        .map(
-                          (h) => ActionChip(
-                            avatar: const Icon(Icons.history_rounded,
-                                size: 15),
-                            label: Text(h.query),
-                            onPressed: () {
-                              _controller.text = h.query;
-                              _search(h.query);
-                            },
-                          ),
-                        )
-                        .toList(),
-                  ),
-                  const SizedBox(height: 20),
-                ],
-                if (recentlyViewed.isNotEmpty) ...[
-                  const Text(
-                    'Yaqinda ko\u2018rilganlar',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    height: 240,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: recentlyViewed.length,
-                      separatorBuilder: (_, __) => const SizedBox(width: 12),
-                      itemBuilder: (context, i) =>
-                          ProductCard(product: recentlyViewed[i], width: 165),
-                    ),
-                  ),
-                ],
-                if (history.isEmpty && recentlyViewed.isEmpty)
-                  const EmptyState(
-                    icon: Icons.manage_search_rounded,
-                    title: 'Qidiruvni boshlang',
-                    subtitle:
-                        'Mahsulot nomi, brend yoki model bo\u2018yicha qidiring. Masalan: RTX 5070, Samsung, iPhone',
-                  ),
-              ],
-            )
-          : _searching
-              ? const LoadingView()
-              : _results!.isEmpty
-                  ? EmptyState(
-                      icon: Icons.search_off_rounded,
-                      title: 'Hech narsa topilmadi',
-                      subtitle:
-                          'Sorovni tekshirib qayta urinib ko\u2018ring yoki boshqa nom bilan qidiring',
-                    )
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                          child: Text(
-                            '${_results!.length} ta mahsulot topildi',
+      body: query.trim().isEmpty
+          ? _suggestions(recent)
+          : results.when(
+              loading: () => const LoadingState(),
+              error: (e, _) => ErrorState(message: '$e'),
+              data: (items) {
+                if (items.isEmpty) {
+                  return const EmptyState(
+                    icon: Icons.search_off_rounded,
+                    title: 'Hech narsa topilmadi',
+                    message: 'Boshqa so\u2018z bilan qidirib ko\u2018ring',
+                  );
+                }
+                return Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                      child: Row(
+                        children: [
+                          Text(
+                            '${items.length} ta natija',
                             style: const TextStyle(
-                              color: AppColors.textDim,
+                              color: AppColors.textSecondary,
                               fontSize: 13,
                             ),
                           ),
-                        ),
-                        Expanded(
-                          child: GridView.builder(
-                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              mainAxisSpacing: 12,
-                              crossAxisSpacing: 12,
-                              childAspectRatio: 0.66,
-                            ),
-                            itemCount: _results!.length,
-                            itemBuilder: (context, i) =>
-                                ProductCard(product: _results![i]),
-                          ),
-                        ),
-                      ],
+                          const Spacer(),
+                        ],
+                      ),
                     ),
+                    Expanded(
+                      child: ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                        itemCount: items.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        itemBuilder: (context, index) => ProductListTile(
+                          product: items[index],
+                          onTap: () {
+                            _submit(_controller.text);
+                            Navigator.of(context)
+                                .pushNamed('/product', arguments: items[index].id);
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+    );
+  }
+
+  Widget _suggestions(AsyncValue<List<String>> recent) {
+    final history = recent.value ?? const <String>[];
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        if (history.isNotEmpty) ...[
+          Row(
+            children: [
+              const Text(
+                'Oxirgi qidiruvlar',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: () async {
+                  await ref.read(historyRepositoryProvider).clearSearches();
+                  ref.invalidate(recentSearchesProvider);
+                },
+                child: const Text('Tozalash'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          for (final item in history)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              leading: const Icon(Icons.history_rounded,
+                  size: 20, color: AppColors.textMuted),
+              title: Text(item, style: const TextStyle(fontSize: 14)),
+              trailing: const Icon(Icons.north_west_rounded,
+                  size: 16, color: AppColors.textMuted),
+              onTap: () {
+                _controller.text = item;
+                _submit(item);
+              },
+            ),
+          const SizedBox(height: 20),
+        ],
+        const Text(
+          'Ommabop so\u2018rovlar',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final q in _popularQueries)
+              ActionChip(
+                label: Text(q),
+                backgroundColor: AppColors.surface,
+                onPressed: () {
+                  _controller.text = q;
+                  _submit(q);
+                },
+              ),
+          ],
+        ),
+      ],
     );
   }
 }
