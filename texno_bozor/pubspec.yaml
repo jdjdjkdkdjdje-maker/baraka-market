@@ -26,6 +26,9 @@ dev_dependencies:
   flutter_lints: ^5.0.0
   # Testlarda SQLite ni desktopda ishga tushirish uchun
   sqflite_common_ffi: ^2.3.4
+  # Kod generatsiyasi ishlatilmaydi, lekin CI dagi codegen bosqichi
+  # xatosiz o'tishi uchun kerak (generator yo'q — hech nima yaratilmaydi).
+  build_runner: ^2.4.13
 
 flutter:
   uses-material-design: true
