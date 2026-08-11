@@ -2,379 +2,51 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-import '../../core/constants/category_icons.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/widgets/ui_widgets.dart';
-import '../../data/database/app_database.dart';
-import '../../data/models/app_models.dart';
+import '../../core/widgets/app_widgets.dart';
+import '../../core/widgets/product_card.dart';
+import '../../data/models/models.dart';
 
-const List<BannerData> _banners = [
-  BannerData(
-    title: 'RTX 5070 sotuvda!',
-    subtitle: 'Yangi avlod videokartalarini birinchi bo\u2018lib xarid qiling',
-    emoji: '\u{1F3AE}',
-    route: '/catalog?cat=cat_gpu',
-    gradientIndex: 0,
-  ),
-  BannerData(
-    title: 'Kompyuterni o\u2018zingiz yig\u2018ing',
-    subtitle: 'PC Builder komponentlar mosligini avtomatik tekshiradi',
-    emoji: '\u{1F5A5}\uFE0F',
-    route: '/pc-builder',
-    gradientIndex: 1,
-  ),
-  BannerData(
-    title: 'TEXNO AI yordamchi',
-    subtitle: 'Texnika tanlashda sun\u2018iy intellektdan maslahat oling',
-    emoji: '\u{1F916}',
-    route: '/texno-ai',
-    gradientIndex: 2,
-  ),
-  BannerData(
-    title: '5 mln so\u2018mdan yuqori xaridlar',
-    subtitle: 'Yetkazib berish butunlay BEPUL',
-    emoji: '\u{1F69A}',
-    route: '/catalog',
-    gradientIndex: 3,
-  ),
-];
-
-const List<List<Color>> _bannerGradients = [
-  [Color(0xFF0E7490), Color(0xFF4F46E5)],
-  [Color(0xFF7C3AED), Color(0xFFDB2777)],
-  [Color(0xFF059669), Color(0xFF0EA5E9)],
-  [Color(0xFFD97706), Color(0xFFDC2626)],
-];
-
-class HomeScreen extends ConsumerWidget {
+/// BOSH SAHIFA — bannerlar, kategoriyalar, tavsiyalar.
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final products = ref.watch(productsProvider);
-    final categories = ref.watch(categoriesProvider);
-
-    return SafeArea(
-      bottom: false,
-      child: ListView(
-        padding: const EdgeInsets.only(bottom: 24),
-        children: [
-          // ----- Logo + AI tugmasi
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            child: Row(
-              children: [
-                const Expanded(child: LogoTitle(showTagline: true)),
-                GradientBox(
-                  borderRadius: 14,
-                  onTap: () => context.push('/texno-ai'),
-                  child: const Padding(
-                    padding:
-                        EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                    child: Row(
-                      children: [
-                        Icon(Icons.auto_awesome,
-                            size: 16, color: Colors.white),
-                        SizedBox(width: 5),
-                        Text(
-                          'TEXNO AI',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // ----- Qidiruv
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            child: Material(
-              color: AppColors.card,
-              borderRadius: BorderRadius.circular(14),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(14),
-                onTap: () => context.push('/search'),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 13),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.search_rounded,
-                          color: AppColors.textDim, size: 21),
-                      SizedBox(width: 10),
-                      Text(
-                        'Mahsulot qidirish... (masalan: RTX 5070)',
-                        style:
-                            TextStyle(color: AppColors.textDim, fontSize: 13.5),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          // ----- Bannerlar
-          const _BannerCarousel(),
-
-          // ----- Kategoriyalar
-          SectionHeader(
-            title: 'Kategoriyalar',
-            onSeeAll: () => context.go('/catalog'),
-          ),
-          categories.maybeWhen(
-            data: (cats) => SizedBox(
-              height: 96,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: cats.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
-                itemBuilder: (context, i) {
-                  final cat = cats[i];
-                  return _CategoryTile(
-                    name: cat.name,
-                    categoryId: cat.id,
-                    icon: iconForCategory(cat.icon),
-                    onTap: () => context.go('/catalog?cat=${cat.id}'),
-                  );
-                },
-              ),
-            ),
-            orElse: () => const SizedBox(height: 96, child: LoadingView()),
-          ),
-
-          // ----- Mahsulot bo'limlari
-          products.maybeWhen(
-            data: (all) => Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _section(context, 'Chegirmadagi mahsulotlar',
-                    all.where((p) => p.oldPrice != null).toList()),
-                _section(
-                  context,
-                  'Mashhur mahsulotlar',
-                  [...all]..sort((a, b) => b.popularity.compareTo(a.popularity)),
-                ),
-                _section(
-                  context,
-                  'Eng ko\u2018p sotilganlar',
-                  all.where((p) => p.isTop == 1).toList(),
-                ),
-                _section(
-                  context,
-                  'Yangi mahsulotlar',
-                  [...all]..sort((a, b) => b.createdAt.compareTo(a.createdAt)),
-                ),
-                _section(
-                  context,
-                  'Tavsiya etilganlar',
-                  [...all]..sort((a, b) => b.rating.compareTo(a.rating)),
-                ),
-                _brandsSection(context, all),
-              ],
-            ),
-            orElse: () => const Padding(
-              padding: EdgeInsets.all(40),
-              child: LoadingView(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _section(BuildContext context, String title, List<Product> items) {
-    if (items.isEmpty) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SectionHeader(
-          title: title,
-          onSeeAll: () => context.go('/catalog'),
-        ),
-        SizedBox(
-          height: 250,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: items.take(10).length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (context, i) => ProductCard(
-              product: items.take(10).toList()[i],
-              width: 168,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _brandsSection(BuildContext context, List<Product> all) {
-    final brands = all.map((p) => p.brand).toSet().toList()..sort();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SectionHeader(title: 'Mashhur brendlar'),
-        SizedBox(
-          height: 76,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: brands.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
-            itemBuilder: (context, i) {
-              final brand = brands[i];
-              final count =
-                  all.where((p) => p.brand == brand).length;
-              return Material(
-                color: AppColors.card,
-                borderRadius: BorderRadius.circular(14),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(14),
-                  onTap: () => context.go(
-                    '/catalog?brand=${Uri.encodeComponent(brand)}',
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          brand,
-                          style: const TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '$count ta mahsulot',
-                          style: const TextStyle(
-                            fontSize: 10.5,
-                            color: AppColors.textDim,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _CategoryTile extends StatelessWidget {
-  const _CategoryTile({
-    required this.name,
-    required this.categoryId,
-    required this.icon,
-    required this.onTap,
-  });
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  final PageController _bannerController = PageController();
+  Timer? _bannerTimer;
+  int _bannerIndex = 0;
 
-  final String name;
-  final String categoryId;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.card,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Container(
-          width: 82,
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.asset(
-                  'assets/categories/$categoryId.jpg',
-                  width: 44,
-                  height: 44,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stack) => Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: AppColors.gradient
-                            .map((c) => c.withOpacity(0.16))
-                            .toList(),
-                      ),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(icon, size: 21, color: AppColors.primary),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 7),
-              Text(
-                name,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 10.5, height: 1.15),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _BannerCarousel extends StatefulWidget {
-  const _BannerCarousel();
-
-  @override
-  State<_BannerCarousel> createState() => _BannerCarouselState();
-}
-
-class _BannerCarouselState extends State<_BannerCarousel> {
-  final PageController _controller = PageController();
-  Timer? _timer;
-  int _page = 0;
+  static const List<({String image, String title, String subtitle})> _banners = [
+    (
+      image: 'assets/banners/banner_1.jpg',
+      title: 'Texnika bozori cho\u2018ntagingizda',
+      subtitle: 'Minglab mahsulot, bitta ilovada',
+    ),
+    (
+      image: 'assets/banners/banner_2.jpg',
+      title: 'Gaming komplektlar',
+      subtitle: 'Videokarta va protsessorlarga chegirma',
+    ),
+    (
+      image: 'assets/banners/banner_3.jpg',
+      title: 'Smartfon va soatlar',
+      subtitle: 'Yangi modellar keldi',
+    ),
+  ];
 
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 4), (_) {
-      if (!mounted || _banners.isEmpty) return;
-      final next = (_page + 1) % _banners.length;
-      _controller.animateToPage(
+    _bannerTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!mounted || !_bannerController.hasClients) return;
+      final next = (_bannerIndex + 1) % _banners.length;
+      _bannerController.animateToPage(
         next,
         duration: const Duration(milliseconds: 450),
         curve: Curves.easeOutCubic,
@@ -384,78 +56,216 @@ class _BannerCarouselState extends State<_BannerCarousel> {
 
   @override
   void dispose() {
-    _timer?.cancel();
-    _controller.dispose();
+    _bannerTimer?.cancel();
+    _bannerController.dispose();
     super.dispose();
+  }
+
+  Future<void> _refresh() async {
+    ref.invalidate(popularProductsProvider);
+    ref.invalidate(newProductsProvider);
+    ref.invalidate(discountedProductsProvider);
+    ref.invalidate(categoriesProvider);
+    ref.invalidate(recentlyViewedProvider);
+    await ref.read(cartProvider.notifier).refresh();
   }
 
   @override
   Widget build(BuildContext context) {
+    final categories = ref.watch(categoriesProvider);
+    final popular = ref.watch(popularProductsProvider);
+    final discounted = ref.watch(discountedProductsProvider);
+    final newest = ref.watch(newProductsProvider);
+    final viewed = ref.watch(recentlyViewedProvider);
+
+    return Scaffold(
+      body: SafeArea(
+        bottom: false,
+        child: RefreshIndicator(
+          onRefresh: _refresh,
+          color: AppColors.primary,
+          backgroundColor: AppColors.surface,
+          child: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(child: _header(context)),
+              SliverToBoxAdapter(child: _bannerCarousel()),
+              SliverToBoxAdapter(child: _aiCard(context)),
+              SliverToBoxAdapter(
+                child: SectionHeader(
+                  title: 'Kategoriyalar',
+                  actionLabel: 'Barchasi',
+                  onAction: () => Navigator.of(context).pushNamed('/catalog'),
+                ),
+              ),
+              SliverToBoxAdapter(child: _categories(categories)),
+              if (discounted.value?.isNotEmpty ?? false) ...[
+                SliverToBoxAdapter(
+                  child: SectionHeader(
+                    title: 'Chegirmalar',
+                    subtitle: 'Cheklangan miqdorda',
+                    actionLabel: 'Barchasi',
+                    onAction: () {
+                      ref.read(catalogFilterProvider.notifier).state =
+                          const ProductFilter(
+                        onlyDiscount: true,
+                        sort: SortOption.discount,
+                      );
+                      Navigator.of(context).pushNamed('/catalog');
+                    },
+                  ),
+                ),
+                SliverToBoxAdapter(child: _horizontalList(discounted)),
+              ],
+              SliverToBoxAdapter(
+                child: SectionHeader(
+                  title: 'Ommabop mahsulotlar',
+                  actionLabel: 'Barchasi',
+                  onAction: () {
+                    ref.read(catalogFilterProvider.notifier).state =
+                        const ProductFilter(sort: SortOption.popular);
+                    Navigator.of(context).pushNamed('/catalog');
+                  },
+                ),
+              ),
+              SliverToBoxAdapter(child: _horizontalList(popular)),
+              SliverToBoxAdapter(child: _pcBuilderCard(context)),
+              SliverToBoxAdapter(
+                child: SectionHeader(
+                  title: 'Yangi kelganlar',
+                  actionLabel: 'Barchasi',
+                  onAction: () {
+                    ref.read(catalogFilterProvider.notifier).state =
+                        const ProductFilter(sort: SortOption.newest);
+                    Navigator.of(context).pushNamed('/catalog');
+                  },
+                ),
+              ),
+              SliverToBoxAdapter(child: _horizontalList(newest)),
+              if (viewed.value?.isNotEmpty ?? false) ...[
+                const SliverToBoxAdapter(
+                  child: SectionHeader(title: 'Yaqinda ko\u2018rilganlar'),
+                ),
+                SliverToBoxAdapter(child: _horizontalList(viewed)),
+              ],
+              const SliverToBoxAdapter(child: SizedBox(height: 28)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _header(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              gradient: AppColors.primaryGradient,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.bolt_rounded, color: Colors.white),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'TEXNO BOZOR',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                Text(
+                  'Elektronika marketplace',
+                  style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: () => Navigator.of(context).pushNamed('/search'),
+            icon: const Icon(Icons.search_rounded),
+            style: IconButton.styleFrom(
+              backgroundColor: AppColors.surface,
+              padding: const EdgeInsets.all(10),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _bannerCarousel() {
     return Column(
       children: [
         SizedBox(
-          height: 148,
+          height: 170,
           child: PageView.builder(
-            controller: _controller,
+            controller: _bannerController,
             itemCount: _banners.length,
-            onPageChanged: (p) => setState(() => _page = p),
-            itemBuilder: (context, i) {
-              final banner = _banners[i];
-              final gradient =
-                  _bannerGradients[banner.gradientIndex % _bannerGradients.length];
+            onPageChanged: (index) => setState(() => _bannerIndex = index),
+            itemBuilder: (context, index) {
+              final banner = _banners[index];
               return Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                child: Material(
-                  borderRadius: BorderRadius.circular(18),
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(18),
-                    onTap: () => context.go(banner.route),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: gradient,
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  banner.title,
-                                  style: const TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                const SizedBox(height: 5),
-                                Text(
-                                  banner.subtitle,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.white.withOpacity(0.85),
-                                  ),
-                                ),
-                              ],
-                            ),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppTheme.radius),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      AppImage(source: banner.image, radius: 0),
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.black.withValues(alpha: 0.75),
+                              Colors.black.withValues(alpha: 0.15),
+                            ],
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
                           ),
-                          const SizedBox(width: 8),
-                          Text(banner.emoji,
-                              style: const TextStyle(fontSize: 46)),
-                        ],
+                        ),
                       ),
-                    ),
+                      Padding(
+                        padding: const EdgeInsets.all(18),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(
+                              width: 210,
+                              child: Text(
+                                banner.title,
+                                style: const TextStyle(
+                                  fontSize: 19,
+                                  height: 1.2,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            SizedBox(
+                              width: 200,
+                              child: Text(
+                                banner.subtitle,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: Color(0xFFD8DEE6),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               );
@@ -464,21 +274,229 @@ class _BannerCarouselState extends State<_BannerCarousel> {
         ),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(_banners.length, (i) {
-            final active = i == _page;
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              margin: const EdgeInsets.symmetric(horizontal: 3),
-              width: active ? 18 : 6,
-              height: 6,
-              decoration: BoxDecoration(
-                color: active ? AppColors.primary : AppColors.border,
-                borderRadius: BorderRadius.circular(3),
+          children: [
+            for (var i = 0; i < _banners.length; i++)
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                width: i == _bannerIndex ? 18 : 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: i == _bannerIndex
+                      ? AppColors.primary
+                      : AppColors.border,
+                  borderRadius: BorderRadius.circular(3),
+                ),
               ),
-            );
-          }),
+          ],
         ),
       ],
+    );
+  }
+
+  Widget _aiCard(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: Material(
+        borderRadius: BorderRadius.circular(AppTheme.radius),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => Navigator.of(context).pushNamed('/ai'),
+          child: Ink(
+            decoration: const BoxDecoration(gradient: AppColors.aiGradient),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.auto_awesome_rounded,
+                        color: Colors.white),
+                  ),
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'TEXNO AI yordamchi',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                        SizedBox(height: 3),
+                        Text(
+                          'Byudjetingizni ayting — mos texnikani topib beraman',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: Color(0xFFE8EEF7),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded, color: Colors.white),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _pcBuilderCard(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+      child: Material(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppTheme.radius),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => Navigator.of(context).pushNamed('/pc-builder'),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.memory_rounded,
+                      color: AppColors.primary),
+                ),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Kompyuter yig\u2018ish',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      SizedBox(height: 3),
+                      Text(
+                        'Qismlarni tanlang — moslikni o\u2018zimiz tekshiramiz',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded,
+                    color: AppColors.textMuted),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _categories(AsyncValue<List<Category>> categories) {
+    return categories.when(
+      loading: () => const SizedBox(height: 108, child: LoadingState()),
+      error: (e, _) => SizedBox(
+        height: 108,
+        child: ErrorState(
+          message: '$e',
+          onRetry: () => ref.invalidate(categoriesProvider),
+        ),
+      ),
+      data: (items) => SizedBox(
+        height: 112,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          itemCount: items.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 10),
+          itemBuilder: (context, index) {
+            final category = items[index];
+            return SizedBox(
+              width: 84,
+              child: Column(
+                children: [
+                  Material(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(14),
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      onTap: () {
+                        ref.read(catalogFilterProvider.notifier).state =
+                            ProductFilter(categoryId: category.id);
+                        Navigator.of(context).pushNamed('/catalog');
+                      },
+                      child: SizedBox(
+                        width: 84,
+                        height: 74,
+                        child: AppImage(source: category.image, radius: 0),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    category.name,
+                    maxLines: 2,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      height: 1.15,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _horizontalList(AsyncValue<List<Product>> products) {
+    return products.when(
+      loading: () => const SizedBox(height: 280, child: LoadingState()),
+      error: (e, _) => SizedBox(height: 280, child: ErrorState(message: '$e')),
+      data: (items) {
+        if (items.isEmpty) {
+          return const SizedBox(
+            height: 100,
+            child: Center(
+              child: Text(
+                'Mahsulot topilmadi',
+                style: TextStyle(color: AppColors.textMuted),
+              ),
+            ),
+          );
+        }
+        return SizedBox(
+          height: 292,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: items.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, index) =>
+                ProductCard(product: items[index], width: 165),
+          ),
+        );
+      },
     );
   }
 }
