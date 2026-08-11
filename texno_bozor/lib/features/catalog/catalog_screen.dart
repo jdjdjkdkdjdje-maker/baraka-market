@@ -380,8 +380,12 @@ class _FilterSheetState extends ConsumerState<FilterSheet> {
                         formatNumber(_rangeStart.round()),
                         formatNumber(_rangeEnd.round()),
                       ),
-                      onChanged: (v) =>
-                          setState(() => (_rangeStart, _rangeEnd) = (v.start, v.end)),
+                      onChanged: (v) {
+                        setState(() {
+                          _rangeStart = v.start;
+                          _rangeEnd = v.end;
+                        });
+                      },
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,

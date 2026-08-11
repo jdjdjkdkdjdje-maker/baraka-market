@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/widgets/ui_widgets.dart';
 
 const List<String> _avatarEmojis = [
   '\u{1F464}',

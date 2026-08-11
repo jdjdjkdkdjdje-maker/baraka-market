@@ -42,7 +42,7 @@ class DriftReviewRepository implements ReviewRepository {
               productId: productId,
               userName: userName,
               rating: rating,
-              text: Value(text),
+              reviewText: Value(text),
               createdAt: DateTime.now().millisecondsSinceEpoch,
             ),
           );

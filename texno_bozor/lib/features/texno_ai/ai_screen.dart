@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/widgets/ui_widgets.dart';
 import '../../data/models/app_models.dart';
 import '../../data/services/ai_service.dart';
 import '../../data/services/connectivity_service.dart';

@@ -45,6 +45,13 @@ enum DeliveryMethod {
   const DeliveryMethod(this.label, this.description);
   final String label;
   final String description;
+
+  static DeliveryMethod fromName(String name) {
+    return DeliveryMethod.values.firstWhere(
+      (m) => m.name == name,
+      orElse: () => DeliveryMethod.standard,
+    );
+  }
 }
 
 /// Mahsulotlarni saralash turlari.

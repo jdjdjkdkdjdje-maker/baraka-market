@@ -6,9 +6,7 @@ import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/format.dart';
 import '../../core/utils/specs.dart';
-import '../../core/widgets/ui_widgets.dart';
 import '../../data/database/app_database.dart';
-import '../../data/models/app_models.dart';
 import '../../data/models/enums.dart';
 import 'compatibility.dart';
 
@@ -413,7 +411,7 @@ class _PcBuilderScreenState extends ConsumerState<PcBuilderScreen> {
         initialChildSize: 0.5,
         builder: (context, scrollController) {
           return Consumer(
-            builder: (context, ref) {
+            builder: (context, ref, _) {
               final list = ref.watch(pcBuildsProvider).valueOrNull ?? [];
               return ListView(
                 controller: scrollController,

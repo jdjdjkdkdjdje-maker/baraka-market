@@ -13,7 +13,7 @@ class Categories extends Table {
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
 
   @override
-  Set<String> get primaryKey => {id};
+  Set<Column<Object>> get primaryKey => {id};
 }
 
 /// Mahsulotlar jadvali.
@@ -38,7 +38,7 @@ class Products extends Table {
   IntColumn get isTop => integer().withDefault(const Constant(0))();
 
   @override
-  Set<String> get primaryKey => {id};
+  Set<Column<Object>> get primaryKey => {id};
 }
 
 /// Foydalanuvchilar (lokal, bitta faol profil).
@@ -52,7 +52,7 @@ class Users extends Table {
   IntColumn get createdAt => integer()();
 
   @override
-  Set<String> get primaryKey => {id};
+  Set<Column<Object>> get primaryKey => {id};
 }
 
 /// Savat.
@@ -62,7 +62,7 @@ class CartItems extends Table {
   IntColumn get addedAt => integer()();
 
   @override
-  Set<String> get primaryKey => {productId};
+  Set<Column<Object>> get primaryKey => {productId};
 }
 
 /// Buyurtmalar.
@@ -82,7 +82,7 @@ class Orders extends Table {
   TextColumn get customerPhone => text().withDefault(const Constant(''))();
 
   @override
-  Set<String> get primaryKey => {id};
+  Set<Column<Object>> get primaryKey => {id};
 }
 
 /// Buyurtma tarkibidagi mahsulotlar (snapshot — katalog o'zgarsa ham saqlanadi).
@@ -102,7 +102,7 @@ class Favorites extends Table {
   IntColumn get addedAt => integer()();
 
   @override
-  Set<String> get primaryKey => {productId};
+  Set<Column<Object>> get primaryKey => {productId};
 }
 
 /// Sharhlar.
@@ -111,11 +111,11 @@ class Reviews extends Table {
   TextColumn get productId => text()();
   TextColumn get userName => text()();
   RealColumn get rating => real()();
-  TextColumn get text => text().withDefault(const Constant(''))();
+  TextColumn get reviewText => text().withDefault(const Constant(''))();
   IntColumn get createdAt => integer()();
 
   @override
-  Set<String> get primaryKey => {id};
+  Set<Column<Object>> get primaryKey => {id};
 }
 
 /// Qidiruv tarixi.
@@ -133,7 +133,7 @@ class RecentlyViewed extends Table {
   IntColumn get viewedAt => integer()();
 
   @override
-  Set<String> get primaryKey => {productId};
+  Set<Column<Object>> get primaryKey => {productId};
 }
 
 /// Saqlangan PC yig'ilishlar.
@@ -146,7 +146,7 @@ class PcBuilds extends Table {
   IntColumn get totalPrice => integer().withDefault(const Constant(0))();
 
   @override
-  Set<String> get primaryKey => {id};
+  Set<Column<Object>> get primaryKey => {id};
 }
 
 @DriftDatabase(tables: [

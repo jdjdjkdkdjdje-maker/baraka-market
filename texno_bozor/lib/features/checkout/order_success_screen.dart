@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/format.dart';
-import '../../core/widgets/ui_widgets.dart';
 
 class OrderSuccessScreen extends ConsumerWidget {
   const OrderSuccessScreen({super.key, required this.orderId});

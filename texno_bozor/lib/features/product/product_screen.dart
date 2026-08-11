@@ -426,7 +426,7 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
                                         border: Border.all(
                                             color: AppColors.border),
                                       ),
-                                      child: Column(
+                                        child: Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
@@ -444,10 +444,10 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
                                                   rating: r.rating, size: 12),
                                             ],
                                           ),
-                                          if (r.text.isNotEmpty) ...[
+                                          if (r.reviewText.isNotEmpty) ...[
                                             const SizedBox(height: 6),
                                             Text(
-                                              r.text,
+                                              r.reviewText,
                                               style: const TextStyle(
                                                 fontSize: 13,
                                                 color: AppColors.textDim,
