@@ -1,0 +1,28 @@
+# Flutter/Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.metadata
+pubspec.lock
+
+# Drift codegen (CI har buildda qayta yaratadi)
+lib/data/database/app_database.g.dart
+
+# Android
+android/.gradle/
+android/local.properties
+android/app/.cxx/
+android/key.properties
+*.keystore
+*.jks
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Muhit o'zgaruvchilari (maxfiy kalitlar bunda bo'lmasin!)
+# .env fayli asset sifatida kerak, shuning uchun u commit qilinadi,
+# lekin unda faqat bo'sh/ommaviy qiymatlar bo'lishi shart.
