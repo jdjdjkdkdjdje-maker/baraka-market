@@ -2,5 +2,7 @@ node_modules
 .next
 .env
 .env.local
+# TEXNO BOZOR: Flutter asset sifatida kerakli .env (faqat bo'sh qiymatlar!)
+!texno_bozor/.env
 next-env.d.ts
 *.tsbuildinfo
